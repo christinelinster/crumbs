@@ -1,0 +1,47 @@
+---
+title: Chinese Beef and Eggs
+description: This Chinese beef and eggs dish combines tender flank steak with silky scrambled eggs in one pan.
+category:
+- dinner
+cuisine: Chinese
+tags:
+- beef
+total_time_minutes: 30
+servings: 4
+source_label: The Woks of Life
+source_url: https://thewoksoflife.com/chinese-beef-and-eggs/
+calories: 326
+protein: 21
+fat: 26
+carbs: 2
+---
+
+## Ingredients
+
+- 6-8 ounces flank steak (thinly sliced against the grain into 2- to 3-inch/5-8cm pieces)
+- 2 tablespoons water
+- 1/8 teaspoon salt
+- 1/8 teaspoon baking soda
+- 1/2 teaspoon cornstarch
+- 1/2 teaspoon sesame oil
+- 1 teaspoon neutral oil (such as canola, vegetable, or avocado oil)
+- 1 teaspoon oyster sauce
+- 6 large eggs
+- 1/8 teaspoon white pepper
+- 1/2 teaspoon salt
+- 1 teaspoon sesame oil
+- 1 teaspoon Shaoxing wine
+- 2 teaspoons cornstarch (mixed into a slurry with 2 tablespoons water)
+- 1 scallion (finely chopped)
+- 4 tablespoons neutral oil
+
+
+## Instructions
+
+1. In a medium bowl, add the sliced beef along with the marinade ingredients: water, salt, baking soda, cornstarch, sesame oil, neutral oil, and oyster sauce. Mix well and marinate for 15-30 minutes.
+2. Meanwhile, beat the eggs with white pepper, salt, sesame oil, and Shaoxing wine. Mix the cornstarch with 2 tablespoons of water until combined. Add the cornstarch slurry to the beaten eggs along with the scallion. Beat again to incorporate everything together, and you are ready to cook.
+3. Place your wok or frying pan over medium-high heat until it starts to smoke (or just until it’s hot, if using a nonstick pan). Add the oil, and cook the beef in a single layer for 20 seconds on each side.
+4. Beat the eggs one more time, and then pour evenly over the beef and reduce the heat to medium. With your spatula, gently push the eggs across the wok a few times—you don't want the eggs to brown. Once you see no more runny eggs, the dish is done. Dish it up immediately and serve!
+
+
+## Notes
