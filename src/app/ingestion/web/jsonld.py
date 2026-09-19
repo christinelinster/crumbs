@@ -1,16 +1,11 @@
 import json
-import asyncio
 from bs4 import BeautifulSoup
 
 from app.ingestion.web.fetch import fetch_page
 
 
 async def get_recipe_json_ld(url: str) -> dict | None:
-    """Return the first Recipe JSON-LD object, or None when none is present.
-
-    The recipeIngredient field contains raw ingredient strings for parsing.
-    HTTP and network errors propagate to the caller.
-    """
+    """Return the first Recipe JSON-LD object, or None when none is present."""
     html = await fetch_page(url)
     soup = BeautifulSoup(html, "html.parser")
 
@@ -36,6 +31,7 @@ async def get_recipe_json_ld(url: str) -> dict | None:
     return None
 
 def find_recipe(data) -> dict | None:
+    """Find the recipe data from the Recipe JSON-LD object, taking into account different nested structures to only extract the recipe data."""
     if isinstance(data, list):
         for item in data:
             recipe = find_recipe(item)
