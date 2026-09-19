@@ -1,17 +1,18 @@
-async def get_recipe_json_ld(url: str) -> dict | None:
-    async with httpx.AsyncClient(
-        follow_redirects=True,
-        timeout=10.0,
-    ) as client:
-        response = await client.get(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0 RecipeImporter/1.0"
-            },
-        )
-        response.raise_for_status()
+import json
+import asyncio
+from bs4 import BeautifulSoup
 
-    soup = BeautifulSoup(response.text, "html.parser")
+from app.ingestion.web.fetch import fetch_page
+
+
+async def get_recipe_json_ld(url: str) -> dict | None:
+    """Return the first Recipe JSON-LD object, or None when none is present.
+
+    The recipeIngredient field contains raw ingredient strings for parsing.
+    HTTP and network errors propagate to the caller.
+    """
+    html = await fetch_page(url)
+    soup = BeautifulSoup(html, "html.parser")
 
     scripts = soup.find_all(
         "script",
@@ -61,4 +62,3 @@ def find_recipe(data) -> dict | None:
                 return recipe
 
     return None
-
