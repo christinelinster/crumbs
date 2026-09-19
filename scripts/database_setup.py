@@ -1,17 +1,15 @@
+from pathlib import Path
 from app.db.connection import pool
 
-
-def setup_database():
-    schema_sql = """
-        CREATE TABLE IF NOT EXISTS test (
-            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY
-        );
-    """
+def setup_database() -> None:
+    """Initialize the database from schema.sql in a single transaction."""
+    schema_path = Path(__file__).resolve().parents[1] / "src/app/db/schema.sql"
+    schema_sql = schema_path.read_text(encoding="utf-8")
 
     with pool:
         with pool.connection() as conn:
-            conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            conn.execute(schema_sql)
+            with conn.transaction():
+                conn.execute(schema_sql)
 
 
 if __name__ == "__main__":
