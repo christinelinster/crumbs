@@ -10,11 +10,11 @@ from openai import OpenAI
 
 from app.db.connection import pool
 from app.db.recipes import save_recipe
+from app.embeddings import generate_embedding
 from app.paths import RECIPES_DIR
 from app.ingestion.utils import canonical_url, frontmatter
 
 
-EMBEDDING_MODEL = "text-embedding-3-small"
 API_KEY = os.getenv("OPENAI_API_KEY")
 
 
@@ -109,16 +109,6 @@ def build_embedding_text(recipe: dict) -> str:
     if recipe["notes"]:
         lines.extend(("Notes:", recipe["notes"]))
     return "\n".join(lines)
-
-
-def generate_embedding(client, text: str) -> list[float]:
-    response = client.embeddings.create(
-        model=EMBEDDING_MODEL, input=text,
-    )
-    if len(response.data) != 1:
-        raise ValueError("expected exactly one embedding")
-    vector = response.data[0].embedding
-    return vector
 
 
 def load_embeddings(
