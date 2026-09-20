@@ -75,7 +75,9 @@ def available_slug(base_slug: str, output_dir: Path, used_slugs: set[str]) -> st
 
 async def import_recipes(url_file: Path, output_dir: Path, template: Path) -> int:
     imported = skipped = failed = 0
-    seen = set()
+    # Source URLs are a uniqueness check for web imports, not the database
+    # identity. The persisted slug still controls recipe lookup and updates.
+    seen_urls = set()
     used_slugs = set()
     try:
         lines = url_file.read_text(encoding='utf-8').splitlines()
@@ -84,21 +86,18 @@ async def import_recipes(url_file: Path, output_dir: Path, template: Path) -> in
         for path in output_dir.glob('*.md'):
             metadata, _ = frontmatter(path)
             existing_slug = metadata.get('slug')
-            if existing_slug is None or (
-                isinstance(existing_slug, str) and not existing_slug.strip()
-            ):
-                existing_slug = path.stem
-            if not isinstance(existing_slug, str):
-                raise ValueError(f'{path}: slug must be text')
+            if not isinstance(existing_slug, str) or not existing_slug.strip():
+                raise ValueError(f'{path}: slug must be nonempty text')
             existing_slug = slugify(existing_slug)
-            if existing_slug:
-                used_slugs.add(existing_slug)
+            if not existing_slug:
+                raise ValueError(f'{path}: slug must contain usable text')
+            used_slugs.add(existing_slug)
             source = metadata.get('source_url')
             if source:
                 if not isinstance(source, str):
                     raise ValueError(f'{path}: source_url must be text')
                 try:
-                    seen.add(canonical_url(source))
+                    seen_urls.add(canonical_url(source))
                 except ValueError as exc:
                     raise ValueError(f'{path}: invalid source_url') from exc
     except (OSError, ValueError) as exc:
@@ -111,11 +110,11 @@ async def import_recipes(url_file: Path, output_dir: Path, template: Path) -> in
             continue
         try:
             url = canonical_url(url)
-            if url in seen:
+            if url in seen_urls:
                 skipped += 1
                 print(f'SKIP {url}: already imported or listed')
                 continue
-            seen.add(url)
+            seen_urls.add(url)
             raw = await get_recipe_json_ld(url)
             if raw is None:
                 raise ValueError('no Recipe JSON-LD found')
