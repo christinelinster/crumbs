@@ -1,7 +1,5 @@
 """Database writes for recipes and their ordered ingredients and steps."""
 
-import json
-
 
 def save_recipe(conn, recipe: dict, embedding: list[float]) -> bool:
     """Save a recipe and its children inside the caller's transaction."""
@@ -17,7 +15,7 @@ def save_recipe(conn, recipe: dict, embedding: list[float]) -> bool:
     if existing:
         slug = existing[1]
 
-    values = dict(recipe, slug=slug, embedding=json.dumps(embedding, allow_nan=False))
+    values = dict(recipe, slug=slug, embedding=embedding)
     recipe_id = conn.execute(
         """
         INSERT INTO recipes (
@@ -58,3 +56,45 @@ def save_recipe(conn, recipe: dict, embedding: list[float]) -> bool:
             (recipe_id, position, instruction),
         )
     return existing is None
+
+
+RECIPE_SEARCH_FIELDS = (
+    "id", "slug", "title", "description", "category", "tags", "cuisine",
+    "total_time_minutes", "servings", "calories", "protein", "carbs", "fat",
+    "source_label", "source_url", "notes", "ingredients", "instructions",
+)
+
+
+def find_similar_recipes(
+    conn, embedding: list[float], limit: int,
+) -> list[dict[str, object]]:
+    """Return complete recipe context ordered by vector similarity."""
+    if type(limit) is not int or limit <= 0:
+        raise ValueError("limit must be a positive integer")
+
+    rows = conn.execute(
+        """
+        SELECT
+            r.id, r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
+            r.total_time_minutes, r.servings, r.calories, r.protein, r.carbs, r.fat,
+            r.source_label, r.source_url, r.notes,
+            ARRAY(
+                SELECT ri.raw_text
+                FROM recipe_ingredients AS ri
+                WHERE ri.recipe_id = r.id
+                ORDER BY ri.position
+            ) AS ingredients,
+            ARRAY(
+                SELECT rs.instruction
+                FROM recipe_steps AS rs
+                WHERE rs.recipe_id = r.id
+                ORDER BY rs.position
+            ) AS instructions
+        FROM recipes AS r
+        WHERE r.embedding IS NOT NULL
+        ORDER BY r.embedding <=> %s::vector
+        LIMIT %s
+        """,
+        (embedding, limit),
+    ).fetchall()
+    return [dict(zip(RECIPE_SEARCH_FIELDS, row)) for row in rows]
