@@ -8,7 +8,7 @@ async def fetch_page(url: str) -> str:
     ) as client:
         response = await client.get(
             url,
-            headers={"User-Agent": "RecipeImporter/1.0"},
+            headers={"User-Agent": "CrumbsRecipeImporter/1.0"},
         )
         response.raise_for_status()
         return response.text

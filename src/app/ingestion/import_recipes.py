@@ -5,41 +5,16 @@ from dataclasses import asdict
 from hashlib import sha256
 import os
 from pathlib import Path
-import re
 import tempfile
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
 import yaml
 
+from app.paths import RECIPE_URLS_PATH, RECIPES_DIR, RECIPE_TEMPLATE_PATH
 from app.ingestion.normalize import normalize_recipe
+from app.ingestion.utils import canonical_url, frontmatter, slugify
 from app.ingestion.web.jsonld import get_recipe_json_ld
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def canonical_url(value: str) -> str:
-    """Ignore fragment anchors; retain paths and queries that identify recipes."""
-    parts = urlsplit(value.strip())
-    if parts.scheme not in ('http', 'https') or not parts.hostname:
-        raise ValueError('expected an HTTP(S) URL')
-    if parts.username or parts.password or any(c.isspace() for c in value.strip()):
-        raise ValueError('URL contains credentials or whitespace')
-    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path or '/', parts.query, ''))
-
-
-def frontmatter(path: Path) -> tuple[dict, str]:
-    text = path.read_text(encoding='utf-8')
-    match = re.match(r'\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)', text, re.S)
-    if not match:
-        raise ValueError(f'{path}: missing YAML frontmatter')
-    try:
-        metadata = yaml.safe_load(match.group(1))
-    except yaml.YAMLError as exc:
-        raise ValueError(f'{path}: invalid YAML frontmatter') from exc
-    if not isinstance(metadata, dict):
-        raise ValueError(f'{path}: frontmatter must be a mapping')
-    return metadata, text[match.end():]
 
 
 def clean_text(value: object) -> str:
@@ -62,8 +37,9 @@ def validate_recipe(recipe):
         setattr(recipe, field, cleaned)
 
 
-def render_recipe(recipe, fields: dict, body: str) -> str:
+def render_recipe(recipe, fields: dict, body: str, slug: str) -> str:
     values = asdict(recipe)
+    values['slug'] = slug
     values['source_label'] = urlsplit(recipe.source_url).hostname
     unknown = fields.keys() - values.keys()
     if unknown:
@@ -87,15 +63,36 @@ def write_recipe(path: Path, text: str):
         os.link(temporary, path)
 
 
+def available_slug(base_slug: str, output_dir: Path, used_slugs: set[str]) -> str:
+    """Return the first unused slug, preserving the base slug when possible."""
+    candidate = base_slug
+    suffix = 2
+    while candidate in used_slugs or (output_dir / f'{candidate}.md').exists():
+        candidate = f'{base_slug}-{suffix}'
+        suffix += 1
+    return candidate
+
+
 async def import_recipes(url_file: Path, output_dir: Path, template: Path) -> int:
     imported = skipped = failed = 0
     seen = set()
+    used_slugs = set()
     try:
         lines = url_file.read_text(encoding='utf-8').splitlines()
         fields, body = frontmatter(template)
         output_dir.mkdir(parents=True, exist_ok=True)
         for path in output_dir.glob('*.md'):
             metadata, _ = frontmatter(path)
+            existing_slug = metadata.get('slug')
+            if existing_slug is None or (
+                isinstance(existing_slug, str) and not existing_slug.strip()
+            ):
+                existing_slug = path.stem
+            if not isinstance(existing_slug, str):
+                raise ValueError(f'{path}: slug must be text')
+            existing_slug = slugify(existing_slug)
+            if existing_slug:
+                used_slugs.add(existing_slug)
             source = metadata.get('source_url')
             if source:
                 if not isinstance(source, str):
@@ -124,16 +121,18 @@ async def import_recipes(url_file: Path, output_dir: Path, template: Path) -> in
                 raise ValueError('no Recipe JSON-LD found')
             recipe = normalize_recipe(raw, url)
             validate_recipe(recipe)
-            name = re.sub(r'[^\w]+', '-', recipe.title.lower(), flags=re.UNICODE).strip('-_')[:100].rstrip('-')
-            if not name:
+            slug = slugify(recipe.title)
+            if not slug:
                 digest = sha256(recipe.source_url.encode('utf-8')).hexdigest()[:8]
-                name = f'recipe-{digest}'
-            target = output_dir / f'{name}.md'
-            markdown = render_recipe(recipe, fields, body)
+                slug = f'recipe-{digest}'
+            slug = available_slug(slug, output_dir, used_slugs)
+            target = output_dir / f'{slug}.md'
+            markdown = render_recipe(recipe, fields, body, slug)
             try:
                 write_recipe(target, markdown)
             except FileExistsError as exc:
                 raise ValueError(f'{target.name} already exists; refusing to overwrite') from exc
+            used_slugs.add(slug)
             imported += 1
             print(f'IMPORTED {url} -> {target}')
         except Exception as exc:
@@ -147,9 +146,9 @@ async def import_recipes(url_file: Path, output_dir: Path, template: Path) -> in
 
 def main() -> int:
     return asyncio.run(import_recipes(
-        ROOT / 'data/import/recipe-urls.txt',
-        ROOT / 'data/recipes',
-        ROOT / 'docs/recipe-corpus-template.md',
+        RECIPE_URLS_PATH,
+        RECIPES_DIR,
+        RECIPE_TEMPLATE_PATH,
     ))
 
 
