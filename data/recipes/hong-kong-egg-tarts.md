@@ -1,5 +1,6 @@
 ---
 title: Hong Kong Egg Tarts
+slug: hong-kong-egg-tarts
 description: These Hong Kong egg tarts feature flaky pastry and a smooth, lightly sweet custard filling.
 category:
 - dessert

@@ -1,5 +1,6 @@
 ---
 title: Chinese Beef and Eggs
+slug: chinese-beef-and-eggs
 description: This Chinese beef and eggs dish combines tender flank steak with silky scrambled eggs in one pan.
 category:
 - dinner

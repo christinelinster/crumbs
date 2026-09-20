@@ -1,5 +1,6 @@
 ---
 title: Eggplant with Garlic Sauce
+slug: eggplant-with-garlic-sauce
 description: This Chinese eggplant with garlic sauce is a savory, balanced dish that avoids deep-frying.
 category:
 - side

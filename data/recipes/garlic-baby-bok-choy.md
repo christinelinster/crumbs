@@ -1,5 +1,6 @@
 ---
 title: Garlic Baby Bok Choy Stir Fry
+slug: garlic-baby-bok-choy
 description: This Chinese garlic baby bok choy stir-fry is a simple vegetable side with tender greens and fragrant garlic.
 category:
 - side

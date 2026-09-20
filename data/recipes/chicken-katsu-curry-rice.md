@@ -1,5 +1,6 @@
 ---
 title: Chicken Katsu Curry Rice
+slug: chicken-katsu-curry-rice
 description: This Japanese chicken katsu curry rice combines crisp breaded chicken, rich curry sauce, and tender rice.
 category:
 - dinner

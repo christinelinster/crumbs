@@ -1,5 +1,6 @@
 ---
 title: Pad See Ew
+slug: pad-see-ew
 description: This Thai pad see ew is a savory stir-fry of wide rice noodles, beef, egg, and Chinese broccoli.
 category:
 - dinner

@@ -1,5 +1,6 @@
 ---
 title: Steamed Eggs with Crispy Pork
+slug: steamed-eggs-with-crispy-pork
 description: These Chinese steamed eggs with crispy pork pair silky custard-like eggs with savory browned pork.
 category:
 - appetizer

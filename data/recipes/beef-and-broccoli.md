@@ -1,5 +1,6 @@
 ---
 title: Beef and Broccoli
+slug: beef-and-broccoli
 description: This beef and broccoli stir-fry recreates a savory Chinese takeout favorite with tender beef and crisp broccoli.
 category:
 - dinner

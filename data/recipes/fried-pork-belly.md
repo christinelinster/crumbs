@@ -1,5 +1,6 @@
 ---
 title: Fried Pork Belly
+slug: fried-pork-belly
 description: This Chinese fried pork belly pairs crisp battered pork with green beans and a savory fermented bean curd sauce.
 category:
 - dinner

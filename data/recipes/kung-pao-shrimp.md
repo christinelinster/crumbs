@@ -1,5 +1,6 @@
 ---
 title: Kung Pao Shrimp
+slug: kung-pao-shrimp
 description: This Chinese kung pao shrimp combines tender shrimp, peanuts, and dried chilies in a savory spicy sauce.
 category:
 - dinner

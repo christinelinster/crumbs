@@ -1,5 +1,6 @@
 ---
 title: Steamed Garlic Ribs with Taro
+slug: steamed-garlic-ribs-with-taro
 description: These Chinese steamed garlic ribs with taro combine tender pork ribs, sweet garlic, and buttery taro.
 category:
 - dinner

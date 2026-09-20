@@ -1,5 +1,6 @@
 ---
 title: Banana Oat Pancakes
+slug: banana-oat-pancakes
 description: These banana oat pancakes are a quick, gluten-free breakfast with natural sweetness from ripe bananas.
 category:
 - breakfast

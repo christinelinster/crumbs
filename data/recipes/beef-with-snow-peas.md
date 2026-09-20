@@ -1,5 +1,6 @@
 ---
 title: Beef with Snow Peas
+slug: beef-with-snow-peas
 description: This quick Chinese beef and snow pea stir-fry combines tender beef with crisp vegetables in a savory sauce.
 category:
 - dinner

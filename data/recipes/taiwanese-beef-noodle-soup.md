@@ -1,5 +1,6 @@
 ---
 title: 'Taiwanese Beef Noodle Soup'
+slug: taiwanese-beef-noodle-soup
 description: This Taiwanese beef noodle soup combines tender beef, aromatic broth, noodles, and bok choy.
 category:
 - lunch

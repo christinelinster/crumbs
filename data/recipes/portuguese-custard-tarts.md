@@ -1,5 +1,6 @@
 ---
 title: Portuguese Custard Tarts
+slug: portuguese-custard-tarts
 description: These Portuguese custard tarts feature flaky pastry and a rich baked custard filling.
 category:
 - dessert

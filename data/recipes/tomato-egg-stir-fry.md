@@ -1,5 +1,6 @@
 ---
 title: Tomato Egg Stir-fry
+slug: tomato-egg-stir-fry
 description: This Chinese tomato and egg stir-fry is a quick, savory home-style dish made in one pan.
 category:
 - dinner

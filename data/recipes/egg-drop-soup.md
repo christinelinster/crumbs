@@ -1,5 +1,6 @@
 ---
 title: Egg Drop Soup
+slug: egg-drop-soup
 description: This Chinese egg drop soup is a quick, comforting soup with silky egg ribbons in a savory broth.
 category:
 - lunch

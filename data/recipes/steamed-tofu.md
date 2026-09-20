@@ -1,5 +1,6 @@
 ---
 title: Steamed Tofu
+slug: steamed-tofu
 description: This Cantonese-style steamed tofu is a light, flavorful dish topped with ginger, scallions, cilantro, and sweet soy sauce.
 category:
 - side

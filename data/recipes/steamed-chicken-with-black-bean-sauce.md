@@ -1,5 +1,6 @@
 ---
 title: Steamed Chicken with Black Bean Sauce
+slug: steamed-chicken-with-black-bean-sauce
 description: This Cantonese steamed chicken with black bean sauce is a simple, comforting dish with deeply savory flavor.
 category:
 - dinner

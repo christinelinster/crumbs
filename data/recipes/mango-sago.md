@@ -1,5 +1,6 @@
 ---
 title: Mango Sago
+slug: mango-sago
 description: This Chinese mango sago is a refreshing dessert made with mango, coconut milk, and chewy tapioca pearls.
 category:
 - dessert

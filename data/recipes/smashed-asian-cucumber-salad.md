@@ -1,5 +1,6 @@
 ---
 title: Smashed Asian Cucumber Salad
+slug: smashed-asian-cucumber-salad
 description: This Chinese smashed cucumber salad is a crisp, refreshing no-cook dish with garlic, cilantro, and a tangy dressing.
 category:
 - appetizer

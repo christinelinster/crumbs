@@ -1,5 +1,6 @@
 ---
 title: Vietnamese Coffee
+slug: vietnamese-coffee
 description: This Vietnamese coffee combines strong drip coffee with sweetened condensed milk for a rich drink.
 category:
 - drink

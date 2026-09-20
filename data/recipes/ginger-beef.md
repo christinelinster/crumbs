@@ -1,5 +1,6 @@
 ---
 title: Ginger Beef
+slug: ginger-beef
 description: This Chinese ginger beef features crispy coated beef in a lightly sweet sauce with caramelized ginger.
 category:
 - dinner

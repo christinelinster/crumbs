@@ -1,5 +1,6 @@
 ---
 title: Pad Kra Pao
+slug: pad-kra-pao
 description: This Thai pad kra pao stir-fry combines ground pork with aromatic holy basil and chilies.
 category:
 - dinner

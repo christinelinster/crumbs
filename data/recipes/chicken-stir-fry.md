@@ -1,5 +1,6 @@
 ---
-title: ChickenStir Fry
+title: Chicken Stir Fry
+slug: chicken-stir-fry
 description: This Chinese chicken stir-fry combines broccoli, aromatics, and a glossy oyster-soy sauce.
 category:
 - dinner

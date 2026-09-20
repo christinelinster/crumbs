@@ -1,5 +1,6 @@
 ---
 title: Coconut Curry Shrimp
+slug: coconut-curry-shrimp
 description: This Thai coconut curry shrimp combines tender shrimp with vegetables in a creamy red curry sauce.
 category:
 - dinner

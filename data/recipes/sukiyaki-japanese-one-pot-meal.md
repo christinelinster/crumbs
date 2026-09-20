@@ -1,5 +1,6 @@
 ---
 title: 'Sukiyaki: Japanese One Pot Meal'
+slug: sukiyaki-japanese-one-pot-meal
 description: This Japanese sukiyaki is a one-pot meal of beef, vegetables, tofu, and noodles simmered in a sweet sauce.
 category:
 - dinner

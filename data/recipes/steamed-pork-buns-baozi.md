@@ -1,5 +1,6 @@
 ---
 title: Steamed Pork Buns (Baozi)
+slug: steamed-pork-buns-baozi
 description: These Chinese steamed pork buns have a soft, fluffy dough filled with savory seasoned pork.
 category:
 - lunch

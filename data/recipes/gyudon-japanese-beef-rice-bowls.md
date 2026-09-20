@@ -1,5 +1,6 @@
 ---
 title: Gyudon (Japanese Beef & Rice Bowls)
+slug: gyudon-japanese-beef-rice-bowls
 description: This Japanese gyudon combines thinly sliced beef and onions in a sweet soy sauce served over rice.
 category:
 - dinner

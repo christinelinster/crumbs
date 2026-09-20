@@ -1,5 +1,6 @@
 ---
 title: Steamed Eggs
+slug: steamed-eggs
 description: These Chinese steamed eggs are a delicate savory custard seasoned with scallions and white pepper.
 category:
 - breakfast

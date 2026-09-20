@@ -1,5 +1,6 @@
 ---
 title: Pan Fried Chicken Breast
+slug: pan-fried-chicken-breast
 description: This pan-fried chicken breast is a quick, savory main dish with a lightly crisp coating.
 category:
 - dinner

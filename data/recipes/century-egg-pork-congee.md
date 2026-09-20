@@ -1,5 +1,6 @@
 ---
 title: Century Egg & Pork Congee
+slug: century-egg-pork-congee
 description: This Cantonese century egg and pork congee is a comforting rice porridge enriched with dried scallop and ginger.
 category:
 - breakfast

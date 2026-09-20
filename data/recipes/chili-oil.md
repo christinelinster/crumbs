@@ -1,5 +1,6 @@
 ---
 title: Chili Oil
+slug: chili-oil
 description: This Chinese chili oil is a fragrant, spicy condiment infused with toasted aromatics.
 category:
 - side

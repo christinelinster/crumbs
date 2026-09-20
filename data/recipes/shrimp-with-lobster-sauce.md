@@ -1,5 +1,6 @@
 ---
 title: Shrimp with Lobster Sauce
+slug: shrimp-with-lobster-sauce
 description: This Chinese shrimp with lobster sauce is a quick takeout-style dish with shrimp in a savory egg-thickened sauce.
 category:
 - dinner

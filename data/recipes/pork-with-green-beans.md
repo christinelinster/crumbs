@@ -1,5 +1,6 @@
 ---
 title: Pork with Green Beans
+slug: pork-with-green-beans
 description: This Chinese pork and green bean stir-fry is a quick one-pan meal with savory pork and crisp beans.
 category:
 - dinner

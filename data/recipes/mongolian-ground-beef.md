@@ -1,5 +1,6 @@
 ---
 title: Mongolian Ground Beef
+slug: mongolian-ground-beef
 description: This Chinese-style Mongolian ground beef is a quick shortcut version of a savory takeout favorite.
 category:
 - dinner

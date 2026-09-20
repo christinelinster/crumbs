@@ -1,5 +1,6 @@
 ---
 title: Egg Fried Rice
+slug: egg-fried-rice
 description: This Chinese fried rice combines jasmine rice, eggs, vegetables, and savory soy seasoning.
 category:
 - dinner

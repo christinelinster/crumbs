@@ -1,5 +1,6 @@
 ---
 title: Borscht Soup
+slug: borscht-soup
 description: This Cantonese borscht soup combines pork ribs and vegetables in a tangy, tomato-rich broth.
 category:
 - lunch

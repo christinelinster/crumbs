@@ -1,5 +1,6 @@
 ---
 title: Chicken and Broccoli
+slug: chicken-and-broccoli
 description: This Chinese chicken and broccoli stir-fry pairs tender chicken with crisp broccoli in a savory brown sauce.
 category:
 - dinner
