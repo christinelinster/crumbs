@@ -33,6 +33,8 @@
       position INTEGER NOT NULL CHECK (position > 0),
       raw_text TEXT NOT NULL,
       normalized_name TEXT,
+      group_position INTEGER CHECK (group_position > 0),
+      group_name TEXT,
 
       PRIMARY KEY (recipe_id, position)
   );
@@ -47,6 +49,8 @@
 
       position INTEGER NOT NULL CHECK (position > 0),
       instruction TEXT NOT NULL,
+      group_position INTEGER CHECK (group_position > 0),
+      group_name TEXT,
 
       PRIMARY KEY (recipe_id, position)
   );
