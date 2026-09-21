@@ -1,6 +1,11 @@
 """OpenAI embedding helpers shared by ingestion and query code."""
+import os
+from dotenv import load_dotenv
 
-EMBEDDING_MODEL = "text-embedding-3-small"
+
+load_dotenv()
+EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')
+
 
 
 def generate_embedding(client, text: str) -> list[float]:

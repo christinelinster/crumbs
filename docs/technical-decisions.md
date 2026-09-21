@@ -122,6 +122,11 @@ recommendations should return distinct recipes, not multiple chunks of one dish.
 No vector index or retrieval endpoint has been implemented. Start retrieval
 evaluation with exact vector search for the small corpus. Fetch only display
 fields for recipe cards rather than transferring embeddings with `SELECT *`.
+The database layer keeps two projections: `find_similar_recipes` returns complete
+recipe context for grounded chatbot answers, while `find_similar_recipe_cards`
+returns card metadata and a similarity score without notes, ingredients,
+instructions, or embeddings. A future frontend/API search endpoint should use
+the card projection; recipe detail requests can fetch the full recipe by slug.
 
 ## Modules and paths
 
