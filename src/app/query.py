@@ -20,6 +20,11 @@ When recommending or explaining a recipe, give the user enough information to ma
 - include the exact source URL as a link when source_url is present;
 - include the ingredients;
 - include the instructions as a numbered list.
+For full recipe instructions, preserve every stored step in its original order without condensing or omitting cooking details.
+Preserve ingredient quantities, preparation details, cooking temperatures, timings, and doneness cues exactly as provided.
+Explicitly identify the ingredients and quantities used for sauces or other components when the stored instructions specify them, and distinguish them from ingredients added later.
+Preserve when ingredients are divided, reserved, drained, removed, or added back. Do not replace specific steps with vague phrases such as "prepare the sauce" or "prepare the ingredients".
+If the stored recipe lacks a needed detail, acknowledge that instead of guessing.
 If source_url is null, state that no external source link is available.
 Only give a shorter summary or a specific subset of these details when the user explicitly asks for one.
 Use prior conversation only to understand the user's follow-up.
@@ -108,6 +113,11 @@ def process_query(
     )
     if not response.choices:
         raise ValueError("expected at least one chat response")
+    if response.choices[0].finish_reason == "length":
+        raise ValueError(
+            "The recipe response was cut off before completion. "
+            "Please ask for one recipe at a time or a specific section."
+        )
     answer = response.choices[0].message.content
 
     if not isinstance(answer, str) or not answer.strip():
