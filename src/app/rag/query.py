@@ -5,7 +5,7 @@ import os
 
 from app.db.connection import pool
 from app.db.recipes import find_similar_recipe_cards, find_similar_recipes
-from app.embeddings import generate_embedding
+from app.rag.embeddings import generate_embedding
 
 
 DEFAULT_RECIPE_LIMIT = 3

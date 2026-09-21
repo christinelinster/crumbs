@@ -9,7 +9,7 @@ from openai import OpenAI
 
 from app.db.connection import pool
 from app.db.recipes import save_recipe
-from app.embeddings import generate_embedding
+from app.rag.embeddings import generate_embedding
 from app.paths import RECIPES_DIR
 from app.ingestion.utils import canonical_url, frontmatter
 

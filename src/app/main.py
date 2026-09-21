@@ -3,7 +3,7 @@ import os
 from openai import OpenAI
 
 from app.db.connection import pool
-from app.query import process_query
+from app.rag.query import process_query
 
 
 def main():
