@@ -21,6 +21,7 @@ carbs: 40
 
 ## Ingredients
 
+### Congee Ingredients
 - 6 oz rice
 - 8 cup water
 - 1 tsp salt
@@ -29,12 +30,14 @@ carbs: 40
 - 0.5 lb pork butt
 - 1 oz dried scallop
 - 0.25 oz ginger
+### Pork Marinade
 - 1.5 tsp salt
 - 0.25 tsp white pepper
 - 2 tbsp cornstarch
 - 2 tbsp water
 - 0.5 tsp baking soda
 - 1 tsp sesame oil
+### Garnishes
 - 1 small amount cilantro
 - 1 small amount green onion
 

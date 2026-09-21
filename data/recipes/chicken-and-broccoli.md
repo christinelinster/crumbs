@@ -19,11 +19,13 @@ carbs: 14
 
 ## Ingredients
 
+### For the chicken:
 - 12 ounces boneless skinless chicken breast (or thighs)
 - 2 tablespoons water
 - 1 tablespoon oyster sauce
 - 1 teaspoon cornstarch
 - 1 1/2 teaspoons neutral oil (such as vegetable, canola, or avocado oil)
+### For the rest of the dish:
 - 2/3 cup low sodium chicken stock
 - 1 1/2 teaspoons sugar (or brown sugar)
 - 1 1/2 tablespoons soy sauce

@@ -19,15 +19,18 @@ carbs: 19
 
 ## Ingredients
 
+### For marinating the beef:
 - 1 pound ground beef
 - 2 teaspoons Shaoxing wine (or dry cooking sherry, optional)
 - 1 teaspoon soy sauce
 - 1/4 teaspoon baking soda
+### For the sauce:
 - 3/4 cup hot water (or hot low sodium chicken or beef stock)
 - 1/4 cup soy sauce
 - 1 teaspoon dark soy sauce (optional)
 - 1/4 cup brown sugar (light or dark)
 - 1 tablespoon cornstarch (mixed with 2 tablespoons water to make a slurry)
+### For the rest of the dish:
 - 1/3 cup cornstarch
 - 1/4 cup neutral oil
 - 3-8 dried red chili peppers (optional; use as little as 3 for mild heat or as many as 8 for a kick!)

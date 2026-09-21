@@ -19,6 +19,7 @@ carbs: 86
 
 ## Ingredients
 
+### Main ingredients
 - 14 oz uncooked jasmine rice
 - 14 oz water
 - 1 oz green onion
@@ -28,6 +29,7 @@ carbs: 86
 - 0.5 teaspoon salt
 - 0.3 cup water
 - 2 tablespoon oil
+### Rice seasoning ingredients
 - 1 tablespoon light soy sauce
 - 1 teaspoon dark soy sauce
 - 0.5 teaspoon salt

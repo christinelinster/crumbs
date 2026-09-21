@@ -19,12 +19,14 @@ carbs: 17
 
 ## Ingredients
 
+### For the beef and marinade:
 - 1 pound flank steak (sliced against the grain into ¼-inch/6mm thick slices)
 - 2 teaspoons cornstarch
 - 2 teaspoons neutral oil (such as vegetable, canola, or avocado oil)
 - 1 teaspoon oyster sauce
 - 1 tablespoon water
 - 1/4 teaspoon baking soda
+### For the sauce:
 - 2/3 cup water
 - 1 1/2 tablespoons light brown sugar
 - 1 tablespoon light soy sauce
@@ -32,6 +34,7 @@ carbs: 17
 - 3/4 teaspoon dark soy sauce (or more regular soy sauce; the dish just won't be as dark)
 - 1/2 teaspoon sesame oil
 - 1 tablespoon minced ginger
+### For the rest of the dish:
 - 1/3 - 1/2 cup cornstarch (plus 1 tablespoon)
 - 1/4 - 1/3 cup neutral oil
 - 2 tablespoons finely julienned ginger

@@ -19,12 +19,14 @@ carbs: 12
 
 ## Ingredients
 
+### For the pork & marinade:
 - 12 ounces pork shoulder or pork butt (cut into thin, 2-inch/5cm strips)
 - 1 tablespoon water
 - 1 teaspoon cornstarch
 - 1 teaspoon neutral oil
 - 1 teaspoon oyster sauce
 - 1 teaspoon Shaoxing wine
+### For the rest of the dish:
 - 1/3 cup chicken stock or water
 - 2 teaspoons light soy sauce
 - 1 teaspoon dark soy sauce

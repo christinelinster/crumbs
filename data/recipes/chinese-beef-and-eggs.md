@@ -19,6 +19,7 @@ carbs: 2
 
 ## Ingredients
 
+### For the beef and marinade:
 - 6-8 ounces flank steak (thinly sliced against the grain into 2- to 3-inch/5-8cm pieces)
 - 2 tablespoons water
 - 1/8 teaspoon salt
@@ -27,6 +28,7 @@ carbs: 2
 - 1/2 teaspoon sesame oil
 - 1 teaspoon neutral oil (such as canola, vegetable, or avocado oil)
 - 1 teaspoon oyster sauce
+### For the rest of the dish:
 - 6 large eggs
 - 1/8 teaspoon white pepper
 - 1/2 teaspoon salt

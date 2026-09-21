@@ -18,12 +18,14 @@ carbs: 48
 
 ## Ingredients
 
+### For the steak & marinade, you’ll need:
 - 8 ounces flank steak (thinly sliced)
 - 1 teaspoon Thai black soy sauce (can also use regular soy sauce or oyster sauce)
 - 1 teaspoon vegetable oil
 - 1 teaspoon cornstarch (or tapioca starch)
 - 1/8 teaspoon baking soda
 - 1 tablespoon water
+### For the rest of the dish, you’ll need:
 - 3 tablespoons water
 - 1 tablespoon oyster sauce
 - 1/2 teaspoon sugar

@@ -22,6 +22,7 @@ carbs: 53
 
 ## Ingredients
 
+### <!-- unnamed group -->
 - 1 lb spare ribs
 - 1 lb green cabbage
 - 2 potato
@@ -35,6 +36,7 @@ carbs: 53
 - 0.5 lemon
 - 2 tbsp corn oil
 - 2 bay leaf
+### Seasoning
 - 0.25 tsp black pepper
 - 5 tbsp ketchup
 - 14 fl oz chicken broth

@@ -24,6 +24,7 @@ carbs: 26
 - 1/4 teaspoon vanilla extract
 - 1/4 teaspoon cinnamon
 - 1 tablespoon neutral oil
+### Optional additions:
 - 1 tablespoon flax seed meal
 - 1 tablespoon peanut butter (or almond butter or other nut butter)
 - 1/4 cup fresh or frozen fruit (such as blueberries, raspberries, chopped strawberries, or chopped mango)

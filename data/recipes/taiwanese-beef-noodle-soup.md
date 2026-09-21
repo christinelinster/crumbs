@@ -42,6 +42,7 @@ carbs: 57
 - Cilantro (finely chopped)
 - Scallions (finely chopped)
 - Pickled mustard greens (to taste, also known as snow vegetable or 雪菜; note this is different from Cantonese haam choy)
+### To create your own spice sachet, tie up the following ingredients in cheesecloth:
 - 1 Chinese cinnamon stick
 - 3 bay leaves (optional)
 - 1/2 tablespoon fennel seeds

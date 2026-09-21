@@ -19,12 +19,14 @@ carbs: 10
 
 ## Ingredients
 
+### For the beef and marinade:
 - 1 pound flank steak (sliced 1/4-inch or 0.6cm thick)
 - 1/4 teaspoon baking soda (optional)
 - 3 tablespoons water
 - 1 1/2 teaspoons cornstarch
 - 2 teaspoons vegetable oil
 - 1 teaspoon oyster sauce
+### For the sauce:
 - 2/3 cup low sodium chicken stock (warmed)
 - 1 1/2 teaspoons granulated sugar (or brown sugar)
 - 1 1/2 tablespoons soy sauce
@@ -32,6 +34,7 @@ carbs: 10
 - 1 tablespoon oyster sauce
 - 1/2 teaspoon sesame oil
 - 1/8 teaspoon white pepper
+### For the rest of the dish:
 - 4 cups broccoli florets
 - 3 tablespoons vegetable oil (divided)
 - 2 cloves garlic (minced)

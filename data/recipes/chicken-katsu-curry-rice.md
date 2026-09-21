@@ -19,6 +19,7 @@ carbs: 47
 
 ## Ingredients
 
+### For the curry sauce:
 - 1 tablespoon vegetable oil
 - 10-12 ounces white or yellow onion (about 2 small to medium onions, halved and cut into 1-inch/2.5cm pieces)
 - 1 clove garlic (minced)
@@ -32,12 +33,14 @@ carbs: 47
 - 2 cups chicken stock
 - 1 tablespoon cornstarch (mixed onto a slurry with 1 tablespoon water)
 - 1 tablespoon salted butter
+### For the chicken katsu:
 - 2 pounds boneless skinless chicken breast
 - salt and pepper
 - 2 tablespoons all purpose flour
 - 1 egg
 - 1 1/3 cups panko breadcrumbs
 - vegetable oil (for frying)
+### For serving:
 - 6 cups steamed short grain Japanese rice
 
 

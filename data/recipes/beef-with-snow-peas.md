@@ -19,12 +19,14 @@ carbs: 10
 
 ## Ingredients
 
+### For the beef:
 - 12 ounces flank steak (sliced ⅛-inch/3mm thick into 2-3 inch/6-7cm pieces)
 - 1 tablespoon oyster sauce
 - 1 tablespoon water
 - 1 teaspoon cornstarch
 - 1 teaspoon neutral oil (such as vegetable, canola, or avocado oil)
 - 1/4 teaspoon baking soda
+### For the rest of the dish:
 - 1/2 cup warm water (or beef stock or chicken stock)
 - 1 tablespoon light soy sauce
 - 1 tablespoon oyster sauce

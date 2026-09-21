@@ -20,10 +20,12 @@ carbs: 68
 
 ## Ingredients
 
+### For the sukiyaki sauce:
 - 2 tablespoons sake
 - 1/4 cup mirin
 - 1 tablespoon brown sugar
 - 1/4 cup soy sauce
+### To prepare the sukiyaki:
 - 1/2 block firm tofu
 - 5 dried shiitake mushrooms (rehydrated)
 - 1 package enoki mushrooms
