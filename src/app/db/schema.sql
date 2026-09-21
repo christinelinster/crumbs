@@ -54,3 +54,21 @@
 
       PRIMARY KEY (recipe_id, position)
   );
+
+  -- Embedding dimension migration for an existing database
+  --
+  -- The CREATE TABLE definition above is the fresh-database default. If a new
+  -- embedding model returns a different vector dimension, replace 3072 below
+  -- with the model's dimension and run this block against the existing
+  -- database before running app.ingestion.load_embeddings. It intentionally
+  -- clears the old vectors because vectors from different dimensions or
+  -- embedding models must not be mixed.
+  --
+  -- BEGIN;
+  -- ALTER TABLE recipes
+  --     ALTER COLUMN embedding TYPE VECTOR(3072)
+  --     USING NULL::VECTOR(3072);
+  -- COMMIT;
+  --
+  -- Then regenerate every recipe vector:
+  -- poetry run python -m app.ingestion.load_embeddings

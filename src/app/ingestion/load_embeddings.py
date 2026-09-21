@@ -1,7 +1,6 @@
 """Load the curated Markdown corpus and one embedding per recipe into Postgres."""
 
 from dataclasses import dataclass
-import math
 import os
 from pathlib import Path
 import re
@@ -26,40 +25,22 @@ class LoadSummary:
 
 
 def parse_recipe_file(path: Path) -> dict:
-    """Read frontmatter and ordered Markdown lists, preserving continuation lines."""
+    """Read reviewed frontmatter and ordered Markdown lists."""
     recipe, body = frontmatter(path)
-    optional_text_fields = {"cuisine", "source_label", "source_url"}
-    for field in ("title", "description", "cuisine", "source_label", "source_url"):
-        value = recipe.get(field)
-        if value is None and field in optional_text_fields:
-            recipe[field] = None
-            continue
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError(f"{field} must be nonempty text")
-        recipe[field] = canonical_url(value) if field == "source_url" else " ".join(value.split())
-
     slug = recipe.get("slug")
     if not isinstance(slug, str) or not slug.strip():
         raise ValueError("slug must be nonempty text")
 
-    for field in ("category", "tags"):
-        values = recipe.get(field) or []
-        if not isinstance(values, list) or any(
-            not isinstance(value, str) or not value.strip() for value in values
-        ):
-            raise ValueError(f"{field} must be a list of nonempty strings")
-        recipe[field] = [" ".join(value.split()) for value in values]
-
+    for field in ("cuisine", "source_label"):
+        recipe.setdefault(field, None)
+    source_url = recipe.get("source_url")
+    recipe["source_url"] = (
+        canonical_url(source_url) if source_url and source_url.strip() else None
+    )
+    recipe["category"] = recipe.get("category") or []
+    recipe["tags"] = recipe.get("tags") or []
     for field in ("total_time_minutes", "servings", "calories", "protein", "carbs", "fat"):
-        value = recipe.get(field)
-        if value is not None:
-            if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
-                raise ValueError(f"{field} must be a finite, nonnegative number")
-            if field in ("total_time_minutes", "servings"):
-                if value != int(value) or (field == "servings" and value == 0):
-                    raise ValueError(f"invalid {field}")
-                value = int(value)
-        recipe[field] = value
+        recipe.setdefault(field, None)
 
     sections = {}
     current = None
@@ -77,19 +58,33 @@ def parse_recipe_file(path: Path) -> dict:
         ("Instructions", r"^\d+[.)]\s+(.+)$"),
     ):
         items = []
+        groups = []
+        pending_group = False
         for line in sections.get(heading, []):
             if not line.strip():
+                continue
+            if line.startswith("### "):
+                name = line[4:].strip()
+                if not name or pending_group:
+                    raise ValueError(f"empty group in {heading}")
+                groups.append({"start": len(items) + 1,
+                               "name": None if name == "<!-- unnamed group -->" else name})
+                pending_group = True
                 continue
             match = re.match(pattern, line.strip())
             if match:
                 items.append(" ".join(match[1].split()))
-            elif items and line[0].isspace():
+                pending_group = False
+            elif items and not pending_group and line[0].isspace():
                 items[-1] += " " + " ".join(line.split())
             else:
                 raise ValueError(f"invalid list item in {heading}: {line}")
         if not items:
             raise ValueError(f"{heading} must contain at least one item")
+        if pending_group:
+            raise ValueError(f"empty group in {heading}")
         recipe[heading.lower()] = items
+        recipe["ingredient_groups" if heading == "Ingredients" else "instruction_groups"] = groups
 
     recipe["notes"] = "\n".join(sections.get("Notes", [])).strip() or None
     return recipe
@@ -102,10 +97,16 @@ def build_embedding_text(recipe: dict) -> str:
         value = recipe[field]
         if value:
             lines.append(f"{label}: {', '.join(value) if isinstance(value, list) else value}")
-    lines.append("Ingredients:")
-    lines.extend(f"- {item}" for item in recipe["ingredients"])
-    lines.append("Instructions:")
-    lines.extend(f"{i}. {step}" for i, step in enumerate(recipe["instructions"], 1))
+    for field, label, group_key in (
+        ("ingredients", "Ingredients", "ingredient_groups"),
+        ("instructions", "Instructions", "instruction_groups"),
+    ):
+        lines.append(f"{label}:")
+        headings = {g["start"]: g["name"] for g in recipe.get(group_key, [])}
+        for i, item in enumerate(recipe[field], 1):
+            if headings.get(i):
+                lines.append(f"{headings[i]}")
+            lines.append(f"- {item}" if field == "ingredients" else f"{i}. {item}")
     if recipe["notes"]:
         lines.extend(("Notes:", recipe["notes"]))
     return "\n".join(lines)
@@ -114,7 +115,7 @@ def build_embedding_text(recipe: dict) -> str:
 def load_embeddings(
     recipes_dir: Path = RECIPES_DIR, *, client, database_pool=pool,
 ) -> LoadSummary:
-    """Validate, embed, and commit each recipe independently.
+    """Embed and commit each reviewed recipe independently.
 
     The caller owns the OpenAI client. The database pool is managed for the
     duration of the load, while each connection is leased only for a recipe

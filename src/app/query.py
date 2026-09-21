@@ -4,7 +4,7 @@ import json
 import os
 
 from app.db.connection import pool
-from app.db.recipes import find_similar_recipes
+from app.db.recipes import find_similar_recipe_cards, find_similar_recipes
 from app.embeddings import generate_embedding
 
 
@@ -44,6 +44,22 @@ def _validate_limit(limit: int) -> int:
     return limit
 
 
+def _search_similar(
+    question: str,
+    limit: int = DEFAULT_RECIPE_LIMIT,
+    *,
+    client,
+    database_pool=pool,
+    search,
+) -> list[dict[str, object]]:
+    """Embed a question, then run the selected recipe search."""
+    question = _validate_question(question)
+    limit = _validate_limit(limit)
+    embedding = generate_embedding(client, question)
+    with database_pool.connection() as conn:
+        return search(conn, embedding, limit)
+
+
 def search_similar_recipes(
     question: str,
     limit: int = DEFAULT_RECIPE_LIMIT,
@@ -51,12 +67,31 @@ def search_similar_recipes(
     client,
     database_pool=pool,
 ) -> list[dict[str, object]]:
-    """Embed a question, then retrieve similar recipes from the database."""
-    question = _validate_question(question)
-    limit = _validate_limit(limit)
-    embedding = generate_embedding(client, question)
-    with database_pool.connection() as conn:
-        return find_similar_recipes(conn, embedding, limit)
+    """Embed a question, then retrieve complete recipe context."""
+    return _search_similar(
+        question,
+        limit,
+        client=client,
+        database_pool=database_pool,
+        search=find_similar_recipes,
+    )
+
+
+def search_similar_recipe_cards(
+    question: str,
+    limit: int = DEFAULT_RECIPE_LIMIT,
+    *,
+    client,
+    database_pool=pool,
+) -> list[dict[str, object]]:
+    """Embed a question, then retrieve fields suitable for recipe cards."""
+    return _search_similar(
+        question,
+        limit,
+        client=client,
+        database_pool=database_pool,
+        search=find_similar_recipe_cards,
+    )
 
 
 def _recipe_context(recipes: list[dict[str, object]]) -> str:
