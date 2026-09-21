@@ -1,5 +1,6 @@
 ---
 title:
+slug:
 description:
 category:
 cuisine:
