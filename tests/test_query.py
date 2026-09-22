@@ -2,12 +2,11 @@ from contextlib import contextmanager
 import unittest
 from types import SimpleNamespace
 
-from app.db.recipes import find_similar_recipe_cards, find_similar_recipes
-from app.rag.query import process_query, search_similar_recipe_cards, search_similar_recipes
+from app.db.recipes import find_similar_recipes
+from app.rag.query import build_recipe_cards, process_query, search_similar_recipes
 
 
 RECIPE_ROW = (
-    7,
     "steamed-eggs",
     "Steamed Eggs",
     "Silky savory eggs.",
@@ -28,6 +27,7 @@ RECIPE_ROW = (
     [{"position": 1, "group_position": 1, "group_name": "Egg mixture"},
      {"position": 2, "group_position": 1, "group_name": "Egg mixture"}],
     [],
+    0.91,
 )
 
 
@@ -108,48 +108,30 @@ class FakeChatClient:
 
 
 class RecipeDatabaseTests(unittest.TestCase):
-    def test_find_similar_recipe_cards_returns_card_projection(self):
-        connection = FakeConnection([RECIPE_ROW[:15] + (0.91,)])
-
-        results = find_similar_recipe_cards(connection, [0.1] * 1536, 2)
-
-        self.assertEqual(results[0]["slug"], "steamed-eggs")
-        self.assertEqual(results[0]["title"], "Steamed Eggs")
-        self.assertEqual(results[0]["similarity_score"], 0.91)
-        self.assertNotIn("notes", results[0])
-        self.assertNotIn("ingredients", results[0])
-        self.assertNotIn("instructions", results[0])
-        self.assertNotIn("embedding", results[0])
-
-        sql, params = connection.calls[0]
-        self.assertIn("similarity_score", sql)
-        self.assertNotIn("recipe_ingredients", sql)
-        self.assertNotIn("recipe_steps", sql)
-        self.assertEqual(params[0], [0.1] * 1536)
-        self.assertEqual(params[1], [0.1] * 1536)
-        self.assertEqual(params[2], 2)
-
-    def test_find_similar_recipes_returns_structured_recipe_context(self):
+    def test_find_similar_recipes_returns_full_context_and_score(self):
         connection = FakeConnection([RECIPE_ROW])
 
         results = find_similar_recipes(connection, [0.1] * 1536, 2)
 
-        self.assertEqual(results[0]["id"], 7)
         self.assertEqual(results[0]["slug"], "steamed-eggs")
+        self.assertEqual(results[0]["similarity_score"], 0.91)
         self.assertEqual(results[0]["ingredients"], ["2 eggs", "1 cup water"])
         self.assertEqual(results[0]["ingredient_groups"][0]["group_name"], "Egg mixture")
         self.assertEqual(
             results[0]["instructions"],
             ["Whisk the eggs.", "Steam until set."],
         )
+        self.assertNotIn("id", results[0])
         self.assertNotIn("embedding", results[0])
 
         sql, params = connection.calls[0]
+        self.assertIn("similarity_score", sql)
         self.assertIn("embedding IS NOT NULL", sql)
         self.assertIn("ORDER BY r.embedding <=> %s::vector", sql)
         self.assertIn("LIMIT %s", sql)
         self.assertEqual(params[0], [0.1] * 1536)
-        self.assertEqual(params[1], 2)
+        self.assertEqual(params[1], [0.1] * 1536)
+        self.assertEqual(params[2], 2)
 
     def test_find_similar_recipes_rejects_invalid_limits_before_query(self):
         for limit in (0, -1, True, 1.5):
@@ -163,20 +145,42 @@ class RecipeDatabaseTests(unittest.TestCase):
 
 
 class QueryRetrievalTests(unittest.TestCase):
-    def test_card_search_returns_card_projection(self):
-        connection = FakeConnection([RECIPE_ROW[:15] + (0.91,)])
-        database_pool = FakePool(connection)
-        client = FakeEmbeddingClient([0.1] * 1536)
+    def test_build_recipe_cards_uses_condensed_fields_and_score(self):
+        cards = build_recipe_cards([{
+            "slug": "steamed-eggs",
+            "title": "Steamed Eggs",
+            "description": "Silky savory eggs.",
+            "category": ["breakfast"],
+            "tags": ["eggs"],
+            "cuisine": "Chinese",
+            "total_time_minutes": 20,
+            "servings": 2,
+            "calories": 180,
+            "protein": 14,
+            "carbs": 4,
+            "fat": 10,
+            "source_label": "Crumbs",
+            "source_url": None,
+            "notes": "Steam gently.",
+            "ingredients": ["2 eggs", "1 cup water"],
+            "instructions": ["Whisk the eggs.", "Steam until set."],
+            "ingredient_groups": [],
+            "instruction_groups": [],
+            "similarity_score": 0.91,
+        }])
 
-        results = search_similar_recipe_cards(
-            "What can I make with eggs?",
-            client=client,
-            database_pool=database_pool,
-        )
-
-        self.assertEqual(results[0]["slug"], "steamed-eggs")
-        self.assertNotIn("ingredients", results[0])
-        self.assertNotIn("instructions", results[0])
+        self.assertEqual(cards, [{
+            "slug": "steamed-eggs",
+            "title": "Steamed Eggs",
+            "category": ["breakfast"],
+            "tags": ["eggs"],
+            "total_time_minutes": 20,
+            "calories": 180,
+            "protein": 14,
+            "carbs": 4,
+            "fat": 10,
+            "similarity_score": 0.91,
+        }])
 
     def test_default_limit_is_three_and_embedding_precedes_connection(self):
         connection = FakeConnection([RECIPE_ROW])
@@ -194,7 +198,7 @@ class QueryRetrievalTests(unittest.TestCase):
 
         self.assertEqual(results[0]["title"], "Steamed Eggs")
         self.assertEqual(client.calls[0]["input"], "What can I make with eggs?")
-        self.assertEqual(connection.calls[0][1][1], 3)
+        self.assertEqual(connection.calls[0][1][2], 3)
         self.assertEqual(database_pool.connection_count, 1)
 
     def test_explicit_limit_is_passed_unchanged(self):
@@ -208,7 +212,7 @@ class QueryRetrievalTests(unittest.TestCase):
             database_pool=FakePool(connection),
         )
 
-        self.assertEqual(connection.calls[0][1][1], 5)
+        self.assertEqual(connection.calls[0][1][2], 5)
 
     def test_blank_or_nontext_question_is_rejected_before_embedding(self):
         for question in ("", "   ", None):
@@ -282,6 +286,7 @@ class QueryConversationTests(unittest.TestCase):
         self.assertIn("2 eggs", messages[-1]["content"])
         self.assertIn('"instructions"', messages[-1]["content"])
         self.assertIn('"group_name": "Egg mixture"', messages[-1]["content"])
+        self.assertNotIn('"similarity_score"', messages[-1]["content"])
         self.assertNotIn("0.1", messages[-1]["content"])
         self.assertEqual(history[-2:], [
             {"role": "user", "content": "What are the ingredients?"},
