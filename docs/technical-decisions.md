@@ -134,11 +134,11 @@ the card projection; recipe detail requests can fetch the full recipe by slug.
 | --- | --- |
 | `app.db.setup` | Execute the schema inside a transaction |
 | `app.db.recipes` | Save recipe metadata and ordered child rows |
-| `app.embeddings` | Shared OpenAI embedding model constant and one-vector helper |
+| `app.rag.embeddings` | Shared OpenAI embedding model constant and one-vector helper |
 | `app.ingestion.import_recipes` | Fetch web recipes and write reviewable Markdown |
 | `app.ingestion.load_embeddings` | Parse Markdown, generate vectors, coordinate database writes |
 | `app.ingestion.utils` | Shared URL normalization, frontmatter parsing, and slug generation |
-| `app.query` | Application-owned limit, vector retrieval orchestration, guarded LLM prompt, and in-memory history |
+| `app.rag.query` | Application-owned limit, vector retrieval orchestration, guarded LLM prompt, and in-memory history |
 | `app.paths` | Central paths for the checkout, corpus, URL list, template, and schema |
 
 Use `python -m` entry points, not the former `scripts/` commands. Path calculations
@@ -152,7 +152,7 @@ loading; the web importer strips source HTML.
 
 ## Query flow
 
-`app.query.search_similar_recipes(question, limit=3, *, client,
+`app.rag.query.search_similar_recipes(question, limit=3, *, client,
 database_pool=pool)` embeds the question with the shared helper and retrieves
 the closest complete recipes. The OpenAI `client` is a required injected
 dependency. `database_pool` is an optional override used by callers and tests;
@@ -160,7 +160,7 @@ the default is the application's shared pool. The `limit` is owned by
 application code and defaults to three; the LLM does not choose how many
 recipes are retrieved.
 
-`app.query.process_query(question, history, *, client, database_pool=pool,
+`app.rag.query.process_query(question, history, *, client, database_pool=pool,
 limit=3)` coordinates retrieval, the guarded system prompt, prior in-memory
 messages, and the chat completion. It appends the user and assistant messages
 to the caller-owned `history` list only after a successful nonempty answer.

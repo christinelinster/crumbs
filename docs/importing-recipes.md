@@ -47,9 +47,7 @@ The schema now supports optional ingredient and instruction groups. Running the
 setup command below both creates the correct tables for a fresh database and adds
 the four nullable grouping columns to existing tables using repeatable
 `ADD COLUMN IF NOT EXISTS` statements. Existing rows initially remain ungrouped.
-Load the updated corpus afterward to persist its headings and regenerate embeddings.
-See [the grouping refresh report](recipe-grouping-refresh.md) for the source audit
-and preservation checks from the September 2026 refresh.
+Load the curated corpus afterward to persist its headings and regenerate embeddings.
 
 Set the existing `PG_DB`, `PG_HOST`, `PG_USER`, and `PG_PORT` variables
 and initialize the schema:
