@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.embeddings import EMBEDDING_MODEL, generate_embedding
+from app.rag.embeddings import EMBEDDING_MODEL, generate_embedding
 from app.ingestion.load_embeddings import (
     build_embedding_text,
     load_embeddings,
@@ -151,14 +151,33 @@ class LoadEmbeddingsTests(unittest.TestCase):
         self.assertIsNone(recipe["source_url"])
         self.assertEqual(recipe["slug"], "test-chicken-soup")
 
-    def test_validates_blank_source_url_with_shared_text_fields(self):
+    def test_treats_blank_source_url_as_missing(self):
         text = RECIPE_MARKDOWN.replace(
             "source_url: https://example.com/test-chicken-soup#recipe",
             "source_url: '   '",
         )
         with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaisesRegex(ValueError, "source_url must be nonempty text"):
-                parse_recipe_file(self.write_recipe(Path(directory), text))
+            recipe = parse_recipe_file(self.write_recipe(Path(directory), text))
+
+        self.assertIsNone(recipe["source_url"])
+
+    def test_preserves_reviewed_metadata_without_revalidation(self):
+        text = RECIPE_MARKDOWN.replace(
+            "description: A warm chicken soup.",
+            "description: A  warm  chicken soup.",
+        ).replace(
+            "source_label: Test Kitchen",
+            "source_label: '  Test   Kitchen  '",
+        ).replace(
+            "servings: 4",
+            "servings: 4.0",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            recipe = parse_recipe_file(self.write_recipe(Path(directory), text))
+
+        self.assertEqual(recipe["description"], "A  warm  chicken soup.")
+        self.assertEqual(recipe["source_label"], "  Test   Kitchen  ")
+        self.assertEqual(recipe["servings"], 4.0)
 
     def test_uses_persisted_slug_when_title_changes(self):
         connection = FakeConnection()
@@ -303,7 +322,8 @@ class LoadEmbeddingsTests(unittest.TestCase):
         ]
         self.assertEqual(
             [params[1:] for params in ingredient_calls],
-            [(1, "2 chicken breasts sliced thinly", None), (2, "1 cabbage", None)],
+            [(1, "2 chicken breasts sliced thinly", None, None, None),
+             (2, "1 cabbage", None, None, None)],
         )
 
     def test_generates_embedding_before_leasing_connection(self):
@@ -426,18 +446,6 @@ class LoadEmbeddingsTests(unittest.TestCase):
         vector = [0.1] * 1536
         client.embeddings.create.return_value.data = [SimpleNamespace(embedding=vector)]
         self.assertEqual(generate_embedding(client, 'Chicken soup'), vector)
-
-    def test_rejects_invalid_metadata_before_api_call(self):
-        for old, new in (
-            ('servings: 4', 'servings: 0'),
-            ('servings: 4', 'servings: 2.5'),
-            ('fat: 10', 'fat: .nan'),
-            ('calories: 300', 'calories: -1'),
-        ):
-            with self.subTest(value=new), tempfile.TemporaryDirectory() as directory:
-                path = self.write_recipe(Path(directory), RECIPE_MARKDOWN.replace(old, new))
-                with self.assertRaises(ValueError):
-                    parse_recipe_file(path)
 
     def test_releases_connection_during_api_call_and_rolls_back_failed_recipe(self):
         connection = FakeConnection()

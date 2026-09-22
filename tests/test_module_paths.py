@@ -31,7 +31,10 @@ with patch('app.db.connection.pool') as pool:
     conn.execute.assert_called_once_with(SCHEMA_PATH.read_text(encoding='utf-8'))
 
 from app.ingestion import import_recipes, load_embeddings
+from app.rag import embeddings, query
 from app.db.recipes import save_recipe
+assert embeddings.EMBEDDING_MODEL == "text-embedding-3-small"
+assert query.DEFAULT_RECIPE_LIMIT == 3
 assert load_embeddings.save_recipe is save_recipe
 assert load_embeddings.load_embeddings.__defaults__ == (RECIPES_DIR,)
 paths = sorted(RECIPES_DIR.glob('*.md'))

@@ -2,8 +2,8 @@ from contextlib import contextmanager
 import unittest
 from types import SimpleNamespace
 
-from app.db.recipes import find_similar_recipes
-from app.query import process_query, search_similar_recipes
+from app.db.recipes import find_similar_recipe_cards, find_similar_recipes
+from app.rag.query import process_query, search_similar_recipe_cards, search_similar_recipes
 
 
 RECIPE_ROW = (
@@ -25,6 +25,9 @@ RECIPE_ROW = (
     "Steam gently.",
     ["2 eggs", "1 cup water"],
     ["Whisk the eggs.", "Steam until set."],
+    [{"position": 1, "group_position": 1, "group_name": "Egg mixture"},
+     {"position": 2, "group_position": 1, "group_name": "Egg mixture"}],
+    [],
 )
 
 
@@ -98,12 +101,34 @@ class FakeChatClient:
         choices = self.choices
         if choices is None:
             choices = [SimpleNamespace(
+                finish_reason="stop",
                 message=SimpleNamespace(content=self.answer),
             )]
         return SimpleNamespace(choices=choices)
 
 
 class RecipeDatabaseTests(unittest.TestCase):
+    def test_find_similar_recipe_cards_returns_card_projection(self):
+        connection = FakeConnection([RECIPE_ROW[:15] + (0.91,)])
+
+        results = find_similar_recipe_cards(connection, [0.1] * 1536, 2)
+
+        self.assertEqual(results[0]["slug"], "steamed-eggs")
+        self.assertEqual(results[0]["title"], "Steamed Eggs")
+        self.assertEqual(results[0]["similarity_score"], 0.91)
+        self.assertNotIn("notes", results[0])
+        self.assertNotIn("ingredients", results[0])
+        self.assertNotIn("instructions", results[0])
+        self.assertNotIn("embedding", results[0])
+
+        sql, params = connection.calls[0]
+        self.assertIn("similarity_score", sql)
+        self.assertNotIn("recipe_ingredients", sql)
+        self.assertNotIn("recipe_steps", sql)
+        self.assertEqual(params[0], [0.1] * 1536)
+        self.assertEqual(params[1], [0.1] * 1536)
+        self.assertEqual(params[2], 2)
+
     def test_find_similar_recipes_returns_structured_recipe_context(self):
         connection = FakeConnection([RECIPE_ROW])
 
@@ -112,6 +137,7 @@ class RecipeDatabaseTests(unittest.TestCase):
         self.assertEqual(results[0]["id"], 7)
         self.assertEqual(results[0]["slug"], "steamed-eggs")
         self.assertEqual(results[0]["ingredients"], ["2 eggs", "1 cup water"])
+        self.assertEqual(results[0]["ingredient_groups"][0]["group_name"], "Egg mixture")
         self.assertEqual(
             results[0]["instructions"],
             ["Whisk the eggs.", "Steam until set."],
@@ -137,6 +163,21 @@ class RecipeDatabaseTests(unittest.TestCase):
 
 
 class QueryRetrievalTests(unittest.TestCase):
+    def test_card_search_returns_card_projection(self):
+        connection = FakeConnection([RECIPE_ROW[:15] + (0.91,)])
+        database_pool = FakePool(connection)
+        client = FakeEmbeddingClient([0.1] * 1536)
+
+        results = search_similar_recipe_cards(
+            "What can I make with eggs?",
+            client=client,
+            database_pool=database_pool,
+        )
+
+        self.assertEqual(results[0]["slug"], "steamed-eggs")
+        self.assertNotIn("ingredients", results[0])
+        self.assertNotIn("instructions", results[0])
+
     def test_default_limit_is_three_and_embedding_precedes_connection(self):
         connection = FakeConnection([RECIPE_ROW])
         database_pool = FakePool(connection)
@@ -240,6 +281,7 @@ class QueryConversationTests(unittest.TestCase):
         self.assertIn("Steamed Eggs", messages[-1]["content"])
         self.assertIn("2 eggs", messages[-1]["content"])
         self.assertIn('"instructions"', messages[-1]["content"])
+        self.assertIn('"group_name": "Egg mixture"', messages[-1]["content"])
         self.assertNotIn("0.1", messages[-1]["content"])
         self.assertEqual(history[-2:], [
             {"role": "user", "content": "What are the ingredients?"},
@@ -305,6 +347,28 @@ class QueryConversationTests(unittest.TestCase):
             )
 
         self.assertEqual(history, [])
+
+    def test_truncated_response_is_rejected_without_changing_history(self):
+        chat = FakeChatClient(choices=[SimpleNamespace(
+            finish_reason="length",
+            message=SimpleNamespace(content="1. Prepare the sauce and"),
+        )])
+        client = SimpleNamespace(
+            embeddings=FakeEmbeddingClient([0.1] * 1536),
+            chat=chat,
+        )
+        history = [{"role": "user", "content": "I want sukiyaki."}]
+        original_history = list(history)
+
+        with self.assertRaisesRegex(ValueError, "cut off before completion"):
+            process_query(
+                "Give me the complete recipe",
+                history,
+                client=client,
+                database_pool=FakePool(FakeConnection([RECIPE_ROW])),
+            )
+
+        self.assertEqual(history, original_history)
 
     def test_empty_retrieval_context_is_explicit(self):
         connection = FakeConnection([])
