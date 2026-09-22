@@ -4,7 +4,7 @@ import json
 import os
 
 from app.db.connection import pool
-from app.db.recipes import find_similar_recipe_cards, find_similar_recipes
+from app.db.recipes import RECIPE_SUMMARY_FIELDS, find_similar_recipes
 from app.rag.embeddings import generate_embedding
 
 
@@ -77,27 +77,25 @@ def search_similar_recipes(
     )
 
 
-def search_similar_recipe_cards(
-    question: str,
-    limit: int = DEFAULT_RECIPE_LIMIT,
-    *,
-    client,
-    database_pool=pool,
-) -> list[dict[str, object]]:
-    """Embed a question, then retrieve fields suitable for recipe cards."""
-    return _search_similar(
-        question,
-        limit,
-        client=client,
-        database_pool=database_pool,
-        search=find_similar_recipe_cards,
-    )
+def build_recipe_cards(recipes: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Project full retrieval results into condensed clickable recipe cards."""
+    return [
+        {
+            **{field: recipe[field] for field in RECIPE_SUMMARY_FIELDS},
+            "similarity_score": recipe["similarity_score"],
+        }
+        for recipe in recipes
+    ]
 
 
 def _recipe_context(recipes: list[dict[str, object]]) -> str:
     if not recipes:
         return "No matching recipes were found."
-    return json.dumps(recipes, ensure_ascii=False, default=str, indent=2)
+    context = [
+        {key: value for key, value in recipe.items() if key != "similarity_score"}
+        for recipe in recipes
+    ]
+    return json.dumps(context, ensure_ascii=False, default=str, indent=2)
 
 
 def _validated_history(history: list[dict[str, str]]) -> list[dict[str, str]]:

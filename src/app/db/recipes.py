@@ -65,17 +65,20 @@ def save_recipe(conn, recipe: dict, embedding: list[float]) -> bool:
     return existing is None
 
 
-RECIPE_CONTEXT_FIELDS = (
-    "id", "slug", "title", "description", "category", "tags", "cuisine",
+RECIPE_METADATA_FIELDS = (
+    "slug", "title", "description", "category", "tags", "cuisine",
     "total_time_minutes", "servings", "calories", "protein", "carbs", "fat",
-    "source_label", "source_url", "notes", "ingredients", "instructions",
-    "ingredient_groups", "instruction_groups",
 )
-RECIPE_CARD_FIELDS = (
-    "id", "slug", "title", "description", "category", "tags", "cuisine",
-    "total_time_minutes", "servings", "calories", "protein", "carbs", "fat",
-    "source_label", "source_url", "similarity_score",
+RECIPE_SOURCE_FIELDS = ("source_label", "source_url")
+RECIPE_SUMMARY_FIELDS = (
+    "slug", "title", "category", "tags", "total_time_minutes",
+    "calories", "protein", "carbs", "fat",
 )
+RECIPE_DETAIL_METADATA_FIELDS = RECIPE_METADATA_FIELDS + RECIPE_SOURCE_FIELDS
+RECIPE_DETAIL_FIELDS = RECIPE_DETAIL_METADATA_FIELDS + (
+    "notes", "ingredients", "instructions", "ingredient_groups", "instruction_groups",
+)
+RECIPE_SEARCH_FIELDS = RECIPE_DETAIL_FIELDS + ("similarity_score",)
 
 
 def _validate_search_limit(limit: int):
@@ -83,16 +86,26 @@ def _validate_search_limit(limit: int):
         raise ValueError("limit must be a positive integer")
 
 
-def find_similar_recipes(
-    conn, embedding: list[float], limit: int,
-) -> list[dict[str, object]]:
-    """Return complete recipe context ordered by vector similarity."""
-    _validate_search_limit(limit)
-
+def list_recipe_summaries(conn) -> list[dict[str, object]]:
+    """Return home-page recipe-card fields in a stable display order."""
     rows = conn.execute(
         """
         SELECT
-            r.id, r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
+            r.slug, r.title, r.category, r.tags, r.total_time_minutes,
+            r.calories, r.protein, r.carbs, r.fat
+        FROM recipes AS r
+        ORDER BY r.title, r.slug
+        """,
+    ).fetchall()
+    return [dict(zip(RECIPE_SUMMARY_FIELDS, row)) for row in rows]
+
+
+def get_recipe_by_slug(conn, slug: str) -> dict[str, object] | None:
+    """Return complete public recipe content for one persisted slug."""
+    row = conn.execute(
+        """
+        SELECT
+            r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
             r.total_time_minutes, r.servings, r.calories, r.protein, r.carbs, r.fat,
             r.source_label, r.source_url, r.notes,
             ARRAY(
@@ -122,27 +135,53 @@ def find_similar_recipes(
                 ORDER BY rs.position
             ) AS instruction_groups
         FROM recipes AS r
-        WHERE r.embedding IS NOT NULL
-        ORDER BY r.embedding <=> %s::vector
-        LIMIT %s
+        WHERE r.slug = %s
         """,
-        (embedding, limit),
-    ).fetchall()
-    return [dict(zip(RECIPE_CONTEXT_FIELDS, row)) for row in rows]
+        (slug,),
+    ).fetchone()
+    if row is None:
+        return None
+    return dict(zip(RECIPE_DETAIL_FIELDS, row))
 
 
-def find_similar_recipe_cards(
+def find_similar_recipes(
     conn, embedding: list[float], limit: int,
 ) -> list[dict[str, object]]:
-    """Return recipe-card fields ordered by vector similarity."""
+    """Return complete recipe context and scores ordered by similarity."""
     _validate_search_limit(limit)
 
     rows = conn.execute(
         """
         SELECT
-            r.id, r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
+            r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
             r.total_time_minutes, r.servings, r.calories, r.protein, r.carbs, r.fat,
-            r.source_label, r.source_url,
+            r.source_label, r.source_url, r.notes,
+            ARRAY(
+                SELECT ri.raw_text
+                FROM recipe_ingredients AS ri
+                WHERE ri.recipe_id = r.id
+                ORDER BY ri.position
+            ) AS ingredients,
+            ARRAY(
+                SELECT rs.instruction
+                FROM recipe_steps AS rs
+                WHERE rs.recipe_id = r.id
+                ORDER BY rs.position
+            ) AS instructions,
+            ARRAY(
+                SELECT json_build_object('position', ri.position,
+                    'group_position', ri.group_position, 'group_name', ri.group_name)
+                FROM recipe_ingredients AS ri
+                WHERE ri.recipe_id = r.id AND ri.group_position IS NOT NULL
+                ORDER BY ri.position
+            ) AS ingredient_groups,
+            ARRAY(
+                SELECT json_build_object('position', rs.position,
+                    'group_position', rs.group_position, 'group_name', rs.group_name)
+                FROM recipe_steps AS rs
+                WHERE rs.recipe_id = r.id AND rs.group_position IS NOT NULL
+                ORDER BY rs.position
+            ) AS instruction_groups,
             1 - (r.embedding <=> %s::vector) AS similarity_score
         FROM recipes AS r
         WHERE r.embedding IS NOT NULL
@@ -151,4 +190,4 @@ def find_similar_recipe_cards(
         """,
         (embedding, embedding, limit),
     ).fetchall()
-    return [dict(zip(RECIPE_CARD_FIELDS, row)) for row in rows]
+    return [dict(zip(RECIPE_SEARCH_FIELDS, row)) for row in rows]
