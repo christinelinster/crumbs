@@ -7,7 +7,13 @@ Express backend or a direct database connection.
 
 ## Run locally
 
-From this directory:
+Start the Crumbs API from the repository root in one terminal:
+
+```bash
+poetry run uvicorn app.api:app --reload --port 3001
+```
+
+Then run the client from this directory in another terminal:
 
 ```bash
 npm ci
@@ -23,6 +29,7 @@ target can be changed when the shared Crumbs API is added.
 
 ```bash
 npm run lint
+npm test
 npm run build
 ```
 

@@ -3,6 +3,7 @@ import { categories } from '../data/categories'
 import useRecipes from '../hooks/useRecipes'
 import Filters from '../components/Filters'
 import RecipeCard from '../components/RecipeCard'
+import { categoryMatches } from '../utils/recipe'
 
 export default function Home({ favouriteIds, isFavourite, toggleFavourite }) {
   const { recipes, maxCalories, loading, error, retry } = useRecipes()
@@ -10,15 +11,15 @@ export default function Home({ favouriteIds, isFavourite, toggleFavourite }) {
   const [calorieLimit, setCalorieLimit] = useState(null)
   const [showFavourites, setShowFavourites] = useState(false)
 
-  const effectiveLimit = calorieLimit ?? maxCalories
+  const effectiveLimit = calorieLimit ?? Math.max(maxCalories, 100)
 
   const visible = useMemo(
     () =>
       (recipes ?? []).filter(
         (r) =>
-          (category === 'All' || r.category === category) &&
-          r.calories <= effectiveLimit &&
-          (!showFavourites || favouriteIds.includes(r.id)),
+          categoryMatches(r, category) &&
+          (r.calories == null || r.calories <= effectiveLimit) &&
+          (!showFavourites || favouriteIds.includes(r.slug)),
       ),
     [recipes, category, effectiveLimit, showFavourites, favouriteIds],
   )
@@ -80,7 +81,7 @@ export default function Home({ favouriteIds, isFavourite, toggleFavourite }) {
         <div className="grid">
           {visible.map((recipe) => (
             <RecipeCard
-              key={recipe.id}
+              key={recipe.slug}
               recipe={recipe}
               isFavourite={isFavourite}
               toggleFavourite={toggleFavourite}

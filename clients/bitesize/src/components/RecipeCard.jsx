@@ -2,16 +2,25 @@ import { Link } from 'react-router-dom'
 import { RECIPE_ACCENT, RECIPE_ICON } from '../data/categories'
 import FavButton from './FavButton'
 import RecipeIcon from './RecipeIcon'
+import { formatLabel, normalizeArray } from '../utils/recipe'
 
 export default function RecipeCard({ recipe, isFavourite, toggleFavourite }) {
-  const fav = isFavourite(recipe.id)
+  const fav = isFavourite(recipe.slug)
+  const categories = normalizeArray(recipe.category)
+  const tags = normalizeArray(recipe.tags)
+  const macros = [
+    ['calories', 'kcal', recipe.calories],
+    ['protein', 'protein', recipe.protein],
+    ['fat', 'fat', recipe.fat],
+    ['carbs', 'carbs', recipe.carbs],
+  ]
 
   return (
     <div className="card" style={{ '--accent': RECIPE_ACCENT }}>
       <Link
-        to={`/recipe/${recipe.id}`}
+        to={`/recipe/${encodeURIComponent(recipe.slug)}`}
         className="card-link"
-        aria-label={recipe.name}
+        aria-label={recipe.title}
       >
         <div className="card-media">
           <div className="card-emoji">
@@ -19,35 +28,38 @@ export default function RecipeCard({ recipe, isFavourite, toggleFavourite }) {
           </div>
           <div className="card-body">
             <div className="card-tags">
-              <span className="chip chip--static">{recipe.category}</span>
-              <span className="chip chip--static chip--time">⏱ {recipe.time} min</span>
+              {categories.map((value) => (
+                <span key={`category-${value}`} className="chip chip--static">
+                  {formatLabel(value)}
+                </span>
+              ))}
+              {tags.map((value) => (
+                <span key={`tag-${value}`} className="chip chip--static chip--tag">
+                  {formatLabel(value)}
+                </span>
+              ))}
+              {recipe.total_time_minutes != null && (
+                <span className="chip chip--static chip--time">
+                  ⏱ {recipe.total_time_minutes} min
+                </span>
+              )}
             </div>
-            <h3 className="card-name">{recipe.name}</h3>
+            <h3 className="card-name">{recipe.title}</h3>
             <ul className="macros">
-              <li className="macro">
-                <strong>{recipe.calories}</strong>
-                <span>kcal</span>
-              </li>
-              <li className="macro">
-                <strong>{recipe.protein}g</strong>
-                <span>protein</span>
-              </li>
-              <li className="macro">
-                <strong>{recipe.fat}g</strong>
-                <span>fat</span>
-              </li>
-              <li className="macro">
-                <strong>{recipe.carbs}g</strong>
-                <span>carbs</span>
-              </li>
+              {macros.map(([key, label, value]) => (
+                <li key={key} className="macro">
+                  <strong>{value == null ? '—' : value}</strong>
+                  <span>{label}</span>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
       </Link>
       <FavButton
         isFavourite={fav}
-        onToggle={() => toggleFavourite(recipe.id)}
-        label={fav ? `Remove ${recipe.name} from favourites` : `Add ${recipe.name} to favourites`}
+        onToggle={() => toggleFavourite(recipe.slug)}
+        label={fav ? `Remove ${recipe.title} from favourites` : `Add ${recipe.title} to favourites`}
       />
     </div>
   )

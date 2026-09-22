@@ -1,26 +1,38 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import useRecipes from '../hooks/useRecipes'
+import useRecipe from '../hooks/useRecipe'
 import { RECIPE_ACCENT, RECIPE_ICON } from '../data/categories'
 import { matchedIngredientIndexes, stepSegments } from '../utils/ingredients'
+import { formatLabel, groupHeadingsAt, normalizeArray } from '../utils/recipe'
 import FavButton from '../components/FavButton'
 import RecipeIcon from '../components/RecipeIcon'
 
-export default function RecipeDetail({ isFavourite, toggleFavourite }) {
-  const { id } = useParams()
-  const { recipes, loading, error, retry } = useRecipes()
-  const recipe = (recipes ?? []).find((r) => r.id === id)
-  const [hoveredStep, setHoveredStep] = useState(null)
+const EMPTY_LIST = []
 
-  const stepMatches = useMemo(
-    () =>
-      recipe
-        ? recipe.instructions.map((step) => matchedIngredientIndexes(recipe.ingredients, step))
-        : [],
+export default function RecipeDetail({ isFavourite, toggleFavourite }) {
+  const { slug } = useParams()
+  const { recipe, loading, error, retry } = useRecipe(slug)
+  const [hoveredStep, setHoveredStep] = useState(null)
+  const ingredients = recipe?.ingredients ?? EMPTY_LIST
+  const instructions = recipe?.instructions ?? EMPTY_LIST
+  const categories = normalizeArray(recipe?.category)
+  const tags = normalizeArray(recipe?.tags)
+
+  const ingredientGroupHeadings = useMemo(
+    () => groupHeadingsAt(recipe?.ingredient_groups),
+    [recipe],
+  )
+  const instructionGroupHeadings = useMemo(
+    () => groupHeadingsAt(recipe?.instruction_groups),
     [recipe],
   )
 
-  if (loading && !recipes) {
+  const stepMatches = useMemo(
+    () => instructions.map((step) => matchedIngredientIndexes(ingredients, step)),
+    [ingredients, instructions],
+  )
+
+  if (loading && !recipe) {
     return (
       <main className="page">
         <div className="empty">
@@ -33,7 +45,7 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
     )
   }
 
-  if (error && !recipes) {
+  if (error && !recipe) {
     return (
       <main className="page">
         <div className="empty">
@@ -78,35 +90,54 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
           <div className="detail-head">
             <div className="detail-head-top">
               <div className="card-tags">
-                <span className="chip chip--static">{recipe.category}</span>
-                <span className="chip chip--static chip--time">⏱ {recipe.time} min</span>
-                <span className="chip chip--static">👥 {recipe.servings} servings</span>
+                {categories.map((value) => (
+                  <span key={`category-${value}`} className="chip chip--static">
+                    {formatLabel(value)}
+                  </span>
+                ))}
+                {tags.map((value) => (
+                  <span key={`tag-${value}`} className="chip chip--static chip--tag">
+                    {formatLabel(value)}
+                  </span>
+                ))}
+                {recipe.cuisine && (
+                  <span className="chip chip--static">{formatLabel(recipe.cuisine)}</span>
+                )}
+                {recipe.total_time_minutes != null && (
+                  <span className="chip chip--static chip--time">
+                    ⏱ {recipe.total_time_minutes} min
+                  </span>
+                )}
+                {recipe.servings != null && (
+                  <span className="chip chip--static">👥 {recipe.servings} servings</span>
+                )}
               </div>
               <FavButton
-                isFavourite={isFavourite(recipe.id)}
-                onToggle={() => toggleFavourite(recipe.id)}
-                label={isFavourite(recipe.id) ? `Remove ${recipe.name} from favourites` : `Add ${recipe.name} to favourites`}
+                isFavourite={isFavourite(recipe.slug)}
+                onToggle={() => toggleFavourite(recipe.slug)}
+                label={isFavourite(recipe.slug) ? `Remove ${recipe.title} from favourites` : `Add ${recipe.title} to favourites`}
               />
             </div>
-            <h1 className="detail-title">{recipe.name}</h1>
+            <h1 className="detail-title">{recipe.title}</h1>
+            {recipe.description && <p className="detail-description">{recipe.description}</p>}
           </div>
         </div>
 
         <div className="macro-bar">
           <div className="macro">
-            <strong>{recipe.calories}</strong>
+            <strong>{recipe.calories == null ? '—' : recipe.calories}</strong>
             <span>kcal</span>
           </div>
           <div className="macro">
-            <strong>{recipe.protein}g</strong>
+            <strong>{recipe.protein == null ? '—' : `${recipe.protein}g`}</strong>
             <span>protein</span>
           </div>
           <div className="macro">
-            <strong>{recipe.fat}g</strong>
+            <strong>{recipe.fat == null ? '—' : `${recipe.fat}g`}</strong>
             <span>fat</span>
           </div>
           <div className="macro">
-            <strong>{recipe.carbs}g</strong>
+            <strong>{recipe.carbs == null ? '—' : `${recipe.carbs}g`}</strong>
             <span>carbs</span>
           </div>
         </div>
@@ -116,42 +147,68 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
             <h2 className="panel-title">Ingredients</h2>
             <p className="panel-hint">Hover a step to see what it uses.</p>
             <ul className="ingredients">
-              {recipe.ingredients.map((item, i) => (
-                <li
-                  key={item}
-                  className={activeIngredients.includes(i) ? 'is-active' : ''}
-                >
-                  {item}
-                </li>
-              ))}
+              {ingredients.map((item, i) => {
+                const position = i + 1
+                const groupName = ingredientGroupHeadings.get(position)
+                return (
+                  <Fragment key={`ingredient-${position}-${item}`}>
+                    {groupName && <li className="group-heading">{groupName}</li>}
+                    <li className={activeIngredients.includes(i) ? 'is-active' : ''}>
+                      {item}
+                    </li>
+                  </Fragment>
+                )
+              })}
             </ul>
           </section>
 
           <section className="panel">
             <h2 className="panel-title">Instructions</h2>
             <ol className="steps">
-              {recipe.instructions.map((step, i) => (
-                <li
-                  key={step}
-                  className={hoveredStep === i ? 'is-hovered' : ''}
-                  onMouseEnter={() => setHoveredStep(i)}
-                  onMouseLeave={() => setHoveredStep(null)}
-                >
-                  <span className="step-num">{i + 1}</span>
-                  <p>
-                    {stepSegments(step, stepMatches[i], recipe.ingredients).map((seg, j) =>
-                      seg.ingredient ? (
-                        <mark key={j} className="step-ingredient">{seg.text}</mark>
-                      ) : (
-                        <span key={j}>{seg.text}</span>
-                      ),
-                    )}
-                  </p>
-                </li>
-              ))}
+              {instructions.map((step, i) => {
+                const position = i + 1
+                const groupName = instructionGroupHeadings.get(position)
+                return (
+                  <Fragment key={`instruction-${position}-${step}`}>
+                    {groupName && <li className="group-heading">{groupName}</li>}
+                    <li
+                      className={hoveredStep === i ? 'is-hovered' : ''}
+                      onMouseEnter={() => setHoveredStep(i)}
+                      onMouseLeave={() => setHoveredStep(null)}
+                    >
+                      <span className="step-num">{position}</span>
+                      <p>
+                        {stepSegments(step, stepMatches[i], ingredients).map((seg, j) =>
+                          seg.ingredient ? (
+                            <mark key={j} className="step-ingredient">{seg.text}</mark>
+                          ) : (
+                            <span key={j}>{seg.text}</span>
+                          ),
+                        )}
+                      </p>
+                    </li>
+                  </Fragment>
+                )
+              })}
             </ol>
           </section>
         </div>
+
+        {(recipe.notes || recipe.source_url) && (
+          <footer className="detail-meta">
+            {recipe.notes && (
+              <div>
+                <h2 className="panel-title">Notes</h2>
+                <p>{recipe.notes}</p>
+              </div>
+            )}
+            {recipe.source_url && (
+              <a href={recipe.source_url} target="_blank" rel="noreferrer">
+                {recipe.source_label || 'View source recipe'} ↗
+              </a>
+            )}
+          </footer>
+        )}
       </article>
     </main>
   )

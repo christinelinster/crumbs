@@ -58,9 +58,10 @@ export function RecipesProvider({ children }) {
 
   const value = useMemo(
     () => {
-      const maxCalories = recipes?.length
-        ? Math.max(...recipes.map((r) => r.calories))
-        : 0
+      const calorieValues = (recipes ?? [])
+        .map((recipe) => recipe.calories)
+        .filter((calories) => Number.isFinite(calories))
+      const maxCalories = calorieValues.length ? Math.max(...calorieValues) : 0
       return { recipes, maxCalories, loading, error, retry }
     },
     [recipes, loading, error, retry],

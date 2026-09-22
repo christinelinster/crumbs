@@ -24,7 +24,7 @@ export default function App() {
             }
           />
           <Route
-            path="/recipe/:id"
+            path="/recipe/:slug"
             element={
               <RecipeDetail
                 isFavourite={isFavourite}

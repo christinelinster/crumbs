@@ -10,6 +10,9 @@ export default function Filters({
   setShowFavourites,
   favouriteCount,
 }) {
+  const sliderMax = Math.max(maxCalories, 100)
+  const sliderValue = Math.min(calorieLimit, sliderMax)
+
   return (
     <div className="filters">
       <div className="filter-group">
@@ -47,9 +50,9 @@ export default function Filters({
           className="slider"
           type="range"
           min="100"
-          max={maxCalories}
+          max={sliderMax}
           step="10"
-          value={calorieLimit}
+          value={sliderValue}
           onChange={(e) => setCalorieLimit(Number(e.target.value))}
         />
       </div>
