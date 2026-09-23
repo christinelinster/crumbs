@@ -38,7 +38,6 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1)
     history: list[ChatMessage] = Field(default_factory=list)
     limit: int = Field(default=3, gt=0)
-    similarity_threshold: float | None = Field(default=None, ge=-1, le=1)
     recipe_slug: str | None = None
 
     @field_validator("question")
@@ -142,7 +141,6 @@ def create_app(database_pool=pool) -> FastAPI:
                 history,
                 database_pool=database_pool,
                 limit=request.limit,
-                similarity_threshold=request.similarity_threshold,
                 recipe_slug=request.recipe_slug,
             )
         except RecipeNotFoundError as error:

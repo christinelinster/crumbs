@@ -1,7 +1,5 @@
 """Database writes for recipes and their ordered ingredients and steps."""
 
-import math
-
 from app.ingestion.groups import group_at
 
 
@@ -82,24 +80,12 @@ RECIPE_DETAIL_FIELDS = RECIPE_DETAIL_METADATA_FIELDS + (
 )
 RECIPE_SEARCH_FIELDS = RECIPE_DETAIL_FIELDS + ("similarity_score",)
 
+DEFAULT_SIMILARITY_THRESHOLD = 0.25
+
 
 def _validate_search_limit(limit: int):
     if type(limit) is not int or limit <= 0:
         raise ValueError("limit must be a positive integer")
-
-
-def _validate_similarity_threshold(similarity_threshold):
-    if similarity_threshold is None:
-        return
-    if (
-        isinstance(similarity_threshold, bool)
-        or not isinstance(similarity_threshold, (int, float))
-        or not math.isfinite(similarity_threshold)
-        or not -1 <= similarity_threshold <= 1
-    ):
-        raise ValueError(
-            "similarity_threshold must be a finite number between -1 and 1"
-        )
 
 
 def list_recipe_summaries(conn) -> list[dict[str, object]]:
@@ -164,12 +150,10 @@ def find_similar_recipes(
     conn,
     embedding: list[float],
     limit: int,
-    similarity_threshold=None,
 ) -> list[dict[str, object]]:
     """Return complete recipe context and scores ordered by similarity."""
-    _validate_search_limit(limit)
-    _validate_similarity_threshold(similarity_threshold)
 
+    _validate_search_limit(limit)
     base_query = """
         SELECT
             r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
@@ -205,21 +189,14 @@ def find_similar_recipes(
         FROM recipes AS r
         WHERE r.embedding IS NOT NULL
     """
-    if similarity_threshold is None:
-        query = base_query + """
-            ORDER BY r.embedding <=> %s::vector
-            LIMIT %s
-        """
-        params = (embedding, embedding, limit)
-    else:
-        query = f"""
-            SELECT *
-            FROM ({base_query}) AS scored_recipes
-            WHERE scored_recipes.similarity_score >= %s
-            ORDER BY scored_recipes.similarity_score DESC
-            LIMIT %s
-        """
-        params = (embedding, similarity_threshold, limit)
+    query = f"""
+        SELECT *
+        FROM ({base_query}) AS scored_recipes
+        WHERE scored_recipes.similarity_score >= %s
+        ORDER BY scored_recipes.similarity_score DESC
+        LIMIT %s
+    """
+    params = (embedding, DEFAULT_SIMILARITY_THRESHOLD, limit)
 
     rows = conn.execute(query, params).fetchall()
     return [dict(zip(RECIPE_SEARCH_FIELDS, row)) for row in rows]

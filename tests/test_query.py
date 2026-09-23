@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app.db.recipes import find_similar_recipes
+from app.db.recipes import DEFAULT_SIMILARITY_THRESHOLD, find_similar_recipes
 from app.rag.query import (
     QueryGenerationError,
     RecipeNotFoundError,
@@ -153,11 +153,10 @@ class RecipeDatabaseTests(QueryTestCase):
         sql, params = connection.calls[0]
         self.assertIn("similarity_score", sql)
         self.assertIn("embedding IS NOT NULL", sql)
-        self.assertIn("ORDER BY r.embedding <=> %s::vector", sql)
+        self.assertIn("ORDER BY scored_recipes.similarity_score DESC", sql)
         self.assertIn("LIMIT %s", sql)
         self.assertEqual(params[0], [0.1] * 1536)
-        self.assertEqual(params[1], [0.1] * 1536)
-        self.assertEqual(params[2], 2)
+        self.assertEqual(params[-2:], (DEFAULT_SIMILARITY_THRESHOLD, 2))
 
     def test_find_similar_recipes_rejects_invalid_limits_before_query(self):
         for limit in (0, -1, True, 1.5):
@@ -231,7 +230,10 @@ class QueryRetrievalTests(QueryTestCase):
 
         self.assertEqual(result.recipe_cards[0]["title"], "Steamed Eggs")
         self.assertEqual(embedding_client.calls[0]["input"], "What can I make with eggs?")
-        self.assertEqual(connection.calls[0][1][2], 3)
+        self.assertEqual(
+            connection.calls[0][1][-2:],
+            (DEFAULT_SIMILARITY_THRESHOLD, 3),
+        )
         self.assertEqual(database_pool.connection_count, 1)
 
     def test_explicit_limit_is_passed_unchanged(self):
@@ -248,9 +250,12 @@ class QueryRetrievalTests(QueryTestCase):
             limit=5,
         )
 
-        self.assertEqual(connection.calls[0][1][2], 5)
+        self.assertEqual(
+            connection.calls[0][1][-2:],
+            (DEFAULT_SIMILARITY_THRESHOLD, 5),
+        )
 
-    def test_process_query_result_returns_answer_cards_and_threshold(self):
+    def test_process_query_result_uses_database_threshold(self):
         connection = FakeConnection([RECIPE_ROW])
         database_pool = FakePool(connection)
         client = self.use_client(SimpleNamespace(
@@ -263,12 +268,14 @@ class QueryRetrievalTests(QueryTestCase):
             [],
             database_pool=database_pool,
             limit=1,
-            similarity_threshold=0.8,
         )
 
         self.assertEqual(result.answer, "Try the steamed eggs.")
         self.assertEqual(result.recipe_cards[0]["slug"], "steamed-eggs")
-        self.assertEqual(connection.calls[0][1][-2:], (0.8, 1))
+        self.assertEqual(
+            connection.calls[0][1][-2:],
+            (DEFAULT_SIMILARITY_THRESHOLD, 1),
+        )
 
 class QueryConversationTests(QueryTestCase):
     def test_process_query_sends_guardrails_history_and_recipe_context(self):
@@ -300,10 +307,18 @@ class QueryConversationTests(QueryTestCase):
         system_prompt = messages[0]["content"].lower()
         self.assertIn("do not invent", system_prompt)
         self.assertIn("title", system_prompt)
-        self.assertIn("source url", system_prompt)
-        self.assertIn("ingredients", system_prompt)
-        self.assertIn("numbered list", system_prompt)
-        self.assertIn("no external source link", system_prompt)
+        self.assertIn("short summary", system_prompt)
+        self.assertIn("why it fits", system_prompt)
+        self.assertIn("full ingredients", system_prompt)
+        self.assertIn("explicitly asks", system_prompt)
+        self.assertIn("unrelated to cooking or recipes", system_prompt)
+        self.assertIn("short prose paragraph", system_prompt)
+        self.assertIn("ordered list", system_prompt)
+        self.assertIn("do not use bullet points", system_prompt)
+        self.assertIn("selected recipe walkthrough", system_prompt)
+        self.assertIn("ingredients and amounts used in that step", system_prompt)
+        self.assertIn("do not copy the stored instructions verbatim", system_prompt)
+        self.assertIn("do not repeat ingredient names or amounts in the step", system_prompt)
         self.assertEqual(messages[1:3], history[:2])
         self.assertIn("Steamed Eggs", messages[-1]["content"])
         self.assertIn("2 eggs", messages[-1]["content"])
@@ -413,6 +428,30 @@ class QueryConversationTests(QueryTestCase):
             "No matching recipes were found.",
             chat.calls[0]["messages"][-1]["content"],
         )
+
+    def test_unrelated_question_uses_retrieval_and_prompt_guardrail(self):
+        embedding_client = FakeEmbeddingClient([0.1] * 1536)
+        chat = FakeChatClient(answer="I can help with recipes and cooking questions.")
+        client = self.use_client(SimpleNamespace(
+            embeddings=embedding_client.embeddings,
+            chat=chat,
+        ))
+        database_pool = FakePool(FakeConnection([RECIPE_ROW]))
+
+        result = process_query_result(
+            "What is the capital of France?",
+            [],
+            database_pool=database_pool,
+        )
+
+        self.assertEqual(result.answer, "I can help with recipes and cooking questions.")
+        self.assertEqual(result.recipe_cards[0]["slug"], "steamed-eggs")
+        self.assertEqual(len(embedding_client.calls), 1)
+        self.assertEqual(database_pool.connection_count, 1)
+        system_prompt = chat.calls[0]["messages"][0]["content"].lower()
+        self.assertIn("unrelated to cooking or recipes", system_prompt)
+        self.assertIn("invite a recipe-related question", system_prompt)
+        self.assertNotIn("greeting", system_prompt)
 
     def test_selected_recipe_context_uses_direct_lookup_without_similarity_search(self):
         connection = FakeConnection([RECIPE_ROW], row=RECIPE_ROW[:-1])

@@ -7,6 +7,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.api import create_app
+from app.db.recipes import DEFAULT_SIMILARITY_THRESHOLD
 
 
 RECIPE_ROW = (
@@ -160,7 +161,6 @@ class ChatApiTests(unittest.TestCase):
                 "question": "What can I make with eggs?",
                 "history": [{"role": "user", "content": "I want breakfast."}],
                 "limit": 1,
-                "similarity_threshold": 0.8,
             })
 
         self.assertEqual(response.status_code, 200)
@@ -179,7 +179,10 @@ class ChatApiTests(unittest.TestCase):
                 "similarity_score": 0.91,
             }],
         })
-        self.assertEqual(connection.calls[0][1][-2:], (0.8, 1))
+        self.assertEqual(
+            connection.calls[0][1][-2:],
+            (DEFAULT_SIMILARITY_THRESHOLD, 1),
+        )
         self.assertEqual(database_pool.enter_count, 1)
         self.assertEqual(database_pool.exit_count, 1)
         self.assertEqual(client.close_calls, 1)
@@ -193,7 +196,42 @@ class ChatApiTests(unittest.TestCase):
             response = http.post("/api/chat", json={"question": "egg recipes"})
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(connection.calls[0][1][2], 3)
+        self.assertEqual(
+            connection.calls[0][1][-2:],
+            (DEFAULT_SIMILARITY_THRESHOLD, 3),
+        )
+
+    def test_unrelated_question_uses_normal_retrieval_path(self):
+        connection = FakeConnection(rows=[RECIPE_ROW])
+        database_pool = FakePool(connection)
+        embedding = FakeEmbeddingClient()
+        chat = FakeChatClient(answer="I can help with recipes and cooking questions.")
+        client = FakeClient(embedding=embedding, chat=chat)
+
+        with self.http_app(database_pool, client) as http:
+            response = http.post(
+                "/api/chat",
+                json={"question": "What is the capital of France?"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            "answer": "I can help with recipes and cooking questions.",
+            "recipe_cards": [{
+                "slug": "steamed-eggs",
+                "title": "Steamed Eggs",
+                "category": ["breakfast"],
+                "tags": ["eggs"],
+                "total_time_minutes": 20,
+                "calories": 180,
+                "protein": 14,
+                "carbs": 4,
+                "fat": 10,
+                "similarity_score": 0.91,
+            }],
+        })
+        self.assertEqual(len(embedding.calls), 1)
+        self.assertEqual(database_pool.connection_count, 1)
 
     def test_selected_slug_uses_exact_recipe_without_similarity_search(self):
         connection = FakeConnection(row=RECIPE_ROW[:-1])
@@ -229,7 +267,6 @@ class ChatApiTests(unittest.TestCase):
             {"question": ""},
             {"question": "   "},
             {"question": "egg recipes", "limit": 0},
-            {"question": "egg recipes", "similarity_threshold": 1.1},
             {
                 "question": "egg recipes",
                 "history": [{"role": "system", "content": "invalid"}],
