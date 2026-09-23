@@ -759,6 +759,18 @@ button {
   transition: color 0.15s ease;
 }
 
+.detail-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 28px 0 24px;
+}
+
+.detail-nav .back-link {
+  margin: 0;
+}
+
 .back-link:hover {
   color: var(--accent);
 }
@@ -795,6 +807,30 @@ button {
 .detail-head-top .fav-btn {
   position: static;
   flex-shrink: 0;
+}
+
+.detail-discuss {
+  flex-shrink: 0;
+  border: 1px solid var(--accent-red);
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--accent-red);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.detail-discuss:hover {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+.detail-discuss:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
 }
 
 .detail-emoji {
@@ -1213,6 +1249,59 @@ button {
   flex: 1;
 }
 
+.chat-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--line);
+  background: #fff8f5;
+}
+
+.chat-context-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chat-context-label {
+  color: var(--accent-red);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.chat-context-copy strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-context-clear {
+  flex-shrink: 0;
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chat-context-clear:hover {
+  color: var(--accent-red);
+}
+
 .chat-panel-header p {
   max-width: 27ch;
   margin: 12px 0 0;
@@ -1286,6 +1375,7 @@ button {
 
 .chat-icon-button:focus-visible,
 .chat-close:focus-visible,
+.chat-context-clear:focus-visible,
 .chat-send:focus-visible,
 .chat-composer textarea:focus-visible,
 .chat-recipe-card:focus-visible {
@@ -1762,6 +1852,11 @@ button {
 
   .chat-panel-header h2 {
     font-size: 22px;
+  }
+
+  .chat-context {
+    padding-right: 20px;
+    padding-left: 20px;
   }
 
   .chat-messages {

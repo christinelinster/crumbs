@@ -7,6 +7,7 @@ import {
   buildChatRequest,
   parseInlineMarkdown,
   parseAssistantContent,
+  scrollChatToLatest,
 } from './chat.js'
 import { CHAT_LAUNCHER_LABEL } from './chatLauncher.js'
 
@@ -31,6 +32,32 @@ test('builds a chat request from completed messages without sending recipe cards
       { role: 'assistant', content: 'Try steamed eggs.' },
     ],
   })
+})
+
+test('includes the active recipe slug in a recipe-specific chat request', () => {
+  assert.deepEqual(buildChatRequest('  How much water?  ', [], 'steamed-eggs'), {
+    question: 'How much water?',
+    history: [],
+    recipe_slug: 'steamed-eggs',
+  })
+})
+
+test('scrolls the chat container to its newest content', () => {
+  const calls = []
+  const container = {
+    scrollHeight: 480,
+    scrollTo(options) {
+      calls.push(options)
+    },
+  }
+
+  scrollChatToLatest(container)
+
+  assert.deepEqual(calls, [{ top: 480, behavior: 'smooth' }])
+})
+
+test('does nothing when the chat container is not mounted', () => {
+  assert.doesNotThrow(() => scrollChatToLatest(null))
 })
 
 test('appends a successful user and assistant exchange with recipe cards', () => {
@@ -76,6 +103,19 @@ test('parses assistant headings and lists into renderable blocks', () => {
       { type: 'unordered-list', items: ['2 eggs', '1 cup water'] },
       { type: 'heading', level: 3, text: 'Method' },
       { type: 'ordered-list', items: ['Whisk the eggs.'] },
+    ],
+  )
+})
+
+test('parses walkthrough steps and their per-step ingredient lists', () => {
+  assert.deepEqual(
+    parseAssistantContent(
+      '1. Whisk the eggs until smooth.\nIngredients for this step:\n- 2 eggs\n- 1 cup water',
+    ),
+    [
+      { type: 'ordered-list', items: ['Whisk the eggs until smooth.'] },
+      { type: 'paragraph', text: 'Ingredients for this step:' },
+      { type: 'unordered-list', items: ['2 eggs', '1 cup water'] },
     ],
   )
 })

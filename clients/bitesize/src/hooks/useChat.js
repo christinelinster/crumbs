@@ -9,7 +9,7 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-export default function useChat() {
+export default function useChat(recipeSlug = null) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -32,7 +32,7 @@ export default function useChat() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildChatRequest(content, requestHistory)),
+        body: JSON.stringify(buildChatRequest(content, requestHistory, recipeSlug)),
       })
       const data = await response.json()
 
@@ -48,7 +48,7 @@ export default function useChat() {
     } finally {
       setLoading(false)
     }
-  }, [loading, messages])
+  }, [loading, messages, recipeSlug])
 
   const reset = useCallback(() => {
     setMessages([])

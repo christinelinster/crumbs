@@ -1,8 +1,22 @@
-export function buildChatRequest(question, messages) {
-  return {
+export function buildChatRequest(question, messages, recipeSlug = null) {
+  const request = {
     question: question.trim(),
     history: messages.map(({ role, content }) => ({ role, content })),
   }
+
+  if (recipeSlug) request.recipe_slug = recipeSlug
+  return request
+}
+
+export function scrollChatToLatest(container) {
+  if (!container) return
+
+  if (typeof container.scrollTo === 'function') {
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+    return
+  }
+
+  container.scrollTop = container.scrollHeight
 }
 
 export function appendUserMessage(messages, question) {

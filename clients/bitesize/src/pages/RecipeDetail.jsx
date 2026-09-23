@@ -15,7 +15,7 @@ import RecipeIcon from '../components/RecipeIcon'
 
 const EMPTY_LIST = []
 
-export default function RecipeDetail({ isFavourite, toggleFavourite }) {
+export default function RecipeDetail({ isFavourite, toggleFavourite, onDiscussRecipe }) {
   const { slug } = useParams()
   const { recipe, loading, error, retry } = useRecipe(slug)
   const ingredients = recipe?.ingredients ?? EMPTY_LIST
@@ -83,7 +83,17 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
 
   return (
     <main className="page">
-      <Link to="/" className="back-link">← All Recipes</Link>
+      <div className="detail-nav">
+        <Link to="/" className="back-link">← All Recipes</Link>
+        <button
+          type="button"
+          className="detail-discuss"
+          onClick={onDiscussRecipe}
+          aria-label={`Discuss ${recipe.title} with Crumbs`}
+        >
+          Discuss with Crumbs
+        </button>
+      </div>
 
       <article className="detail" style={{ '--accent': RECIPE_ACCENT }}>
         <div className="detail-hero">

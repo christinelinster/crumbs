@@ -1,7 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatDuration, formatLabel, normalizeArray } from '../utils/recipe'
-import { parseAssistantContent, parseInlineMarkdown } from '../utils/chat'
+import {
+  parseAssistantContent,
+  parseInlineMarkdown,
+  scrollChatToLatest,
+} from '../utils/chat'
 
 function ChatMark() {
   return (
@@ -128,8 +132,15 @@ export default function ChatPanel({
   loading,
   error,
   sendMessage,
+  recipeContext,
+  onClearRecipeContext,
 }) {
   const [draft, setDraft] = useState('')
+  const messagesRef = useRef(null)
+
+  useEffect(() => {
+    if (isOpen) scrollChatToLatest(messagesRef.current)
+  }, [error, isOpen, loading, messages])
 
   if (!isOpen) return null
 
@@ -182,7 +193,23 @@ export default function ChatPanel({
           </div>
         </header>
 
-        <div className="chat-messages" aria-live="polite">
+        {recipeContext && (
+          <div className="chat-context" role="status">
+            <div className="chat-context-copy">
+              <span className="chat-context-label">Discussing</span>
+              <strong>{recipeContext.title}</strong>
+            </div>
+            <button
+              type="button"
+              className="chat-context-clear"
+              onClick={onClearRecipeContext}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        <div ref={messagesRef} className="chat-messages" aria-live="polite">
           {messages.length === 0 && !loading && (
             <div className="chat-empty">
               <span className="chat-empty-mark"><ChatMark /></span>
