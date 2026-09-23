@@ -1,12 +1,23 @@
 export const categories = [
   'All',
+  'Appetizer',
   'Breakfast',
-  'Lunch',
-  'Dinner',
   'Dessert',
+  'Dinner',
+  'Drink',
+  'Lunch',
+  'Side',
   'Snack',
-  'High Protein',
-  'Low Carb',
+]
+
+export const tags = [
+  'All',
+  'Beef',
+  'Chicken',
+  'No Cook',
+  'One Pot',
+  'Pork',
+  'Soup',
 ]
 
 export const RECIPE_ICON = 'bowl'

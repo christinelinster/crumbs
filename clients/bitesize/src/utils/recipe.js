@@ -13,12 +13,79 @@ export function formatLabel(value) {
     .join(' ')
 }
 
-export function categoryMatches(recipe, selectedCategory) {
-  if (selectedCategory === 'All') return true
+export function formatServings(value) {
+  const count = Number(value)
+  return `${value} ${count === 1 ? 'serving' : 'servings'}`
+}
 
-  const wanted = normalizeKey(selectedCategory)
-  return [...normalizeArray(recipe.category), ...normalizeArray(recipe.tags)].some(
-    (value) => normalizeKey(value) === wanted,
+export function formatDuration(value) {
+  const minutes = Math.floor(Number(value))
+  if (!Number.isFinite(minutes) || minutes < 0) return ''
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  if (hours === 0) return `${remainingMinutes} min`
+  if (remainingMinutes === 0) return `${hours} hr`
+  return `${hours} hr ${remainingMinutes} min`
+}
+
+export function categoryMatches(recipe, selectedCategory) {
+  return facetMatches(recipe.category, selectedCategory)
+}
+
+function tagMatches(recipe, selectedTag) {
+  return facetMatches(recipe.tags, selectedTag)
+}
+
+function facetMatches(values, selectedValue) {
+  if (selectedValue === 'All') return true
+
+  const wanted = normalizeKey(selectedValue)
+  return normalizeArray(values).some((value) => normalizeKey(value) === wanted)
+}
+
+export function recipeMatchesSearch(recipe, searchTerm) {
+  const query = normalizeKey(searchTerm)
+  if (!query) return true
+
+  const searchableText = normalizeKey(
+    [
+      recipe.title,
+      recipe.slug,
+      recipe.description,
+      recipe.cuisine,
+      ...normalizeArray(recipe.category),
+      ...normalizeArray(recipe.tags),
+    ]
+      .filter(Boolean)
+      .join(' '),
+  )
+
+  return query.split(' ').every((word) => searchableText.includes(word))
+}
+
+export function filterRecipes(
+  recipes,
+  {
+    category = 'All',
+    tag = 'All',
+    searchTerm = '',
+    calorieLimit = Number.POSITIVE_INFINITY,
+    showFavourites = false,
+    favouriteIds = [],
+  } = {},
+) {
+  const limit = Number.isFinite(calorieLimit)
+    ? calorieLimit
+    : Number.POSITIVE_INFINITY
+
+  return (recipes ?? []).filter(
+    (recipe) =>
+      categoryMatches(recipe, category) &&
+      tagMatches(recipe, tag) &&
+      recipeMatchesSearch(recipe, searchTerm) &&
+      (recipe.calories == null || recipe.calories <= limit) &&
+      (!showFavourites || favouriteIds.includes(recipe.slug)),
   )
 }
 

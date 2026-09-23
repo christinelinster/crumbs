@@ -10,13 +10,15 @@ const STOPWORDS = new Set([
   'of', 'and', 'to', 'for', 'with', 'fresh', 'plus', 'serving', 'serve', 'chopped',
   'diced', 'sliced', 'grated', 'minced', 'melted', 'softened', 'rinsed', 'drained',
   'toasted', 'roasted', 'cooked', 'crushed', 'into', 'the', 'your', 'leaf', 'leaves',
-  'mixed', 'warm', 'cubed', 'halved', 'cloves',
+  'mixed', 'warm', 'cubed', 'halved', 'cloves', 'you', 'use', 'using', 'any', 'about',
+  'same', 'volume', 'desired', 'taste', 'optional', 'or', 'all', 'purpose', 'neutral',
 ])
 
 const QUANTITY = /^\d/
 
 export function ingredientKeywords(ingredient) {
-  return ingredient
+  const ingredientName = ingredient.split('(')[0]
+  const keywords = ingredientName
     .toLowerCase()
     .split(/[\s,()]+/)
     .filter(Boolean)
@@ -27,6 +29,7 @@ export function ingredientKeywords(ingredient) {
         !STOPWORDS.has(token) &&
         token.length >= 3,
     )
+  return [...new Set(keywords)]
 }
 
 export function matchedIngredientIndexes(ingredients, step) {

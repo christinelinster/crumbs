@@ -1,9 +1,15 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import useRecipe from '../hooks/useRecipe'
 import { RECIPE_ACCENT, RECIPE_ICON } from '../data/categories'
 import { matchedIngredientIndexes, stepSegments } from '../utils/ingredients'
-import { formatLabel, groupHeadingsAt, normalizeArray } from '../utils/recipe'
+import {
+  formatDuration,
+  formatLabel,
+  formatServings,
+  groupHeadingsAt,
+  normalizeArray,
+} from '../utils/recipe'
 import FavButton from '../components/FavButton'
 import RecipeIcon from '../components/RecipeIcon'
 
@@ -12,7 +18,6 @@ const EMPTY_LIST = []
 export default function RecipeDetail({ isFavourite, toggleFavourite }) {
   const { slug } = useParams()
   const { recipe, loading, error, retry } = useRecipe(slug)
-  const [hoveredStep, setHoveredStep] = useState(null)
   const ingredients = recipe?.ingredients ?? EMPTY_LIST
   const instructions = recipe?.instructions ?? EMPTY_LIST
   const categories = normalizeArray(recipe?.category)
@@ -76,8 +81,6 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
     )
   }
 
-  const activeIngredients = hoveredStep !== null ? stepMatches[hoveredStep] : []
-
   return (
     <main className="page">
       <Link to="/" className="back-link">← All Recipes</Link>
@@ -89,27 +92,17 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
           </div>
           <div className="detail-head">
             <div className="detail-head-top">
-              <div className="card-tags">
-                {categories.map((value) => (
-                  <span key={`category-${value}`} className="chip chip--static">
-                    {formatLabel(value)}
-                  </span>
-                ))}
-                {tags.map((value) => (
-                  <span key={`tag-${value}`} className="chip chip--static chip--tag">
-                    {formatLabel(value)}
-                  </span>
-                ))}
-                {recipe.cuisine && (
-                  <span className="chip chip--static">{formatLabel(recipe.cuisine)}</span>
+              <div className="recipe-taxonomy">
+                {categories[0] && (
+                  <span className="recipe-category-label">{formatLabel(categories[0])}</span>
                 )}
-                {recipe.total_time_minutes != null && (
-                  <span className="chip chip--static chip--time">
-                    ⏱ {recipe.total_time_minutes} min
-                  </span>
+                {categories[0] && tags.length > 0 && (
+                  <span className="recipe-taxonomy-separator" aria-hidden="true">·</span>
                 )}
-                {recipe.servings != null && (
-                  <span className="chip chip--static">👥 {recipe.servings} servings</span>
+                {tags.length > 0 && (
+                  <span className="recipe-tag-text">
+                    {tags.slice(0, 2).map(formatLabel).join(' · ')}
+                  </span>
                 )}
               </div>
               <FavButton
@@ -120,23 +113,45 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
             </div>
             <h1 className="detail-title">{recipe.title}</h1>
             {recipe.description && <p className="detail-description">{recipe.description}</p>}
+            {(recipe.cuisine || recipe.total_time_minutes != null || recipe.servings != null) && (
+              <div className="detail-facts" aria-label="Recipe details">
+                {recipe.cuisine && (
+                  <div className="detail-fact">
+                    <span className="detail-fact-label">Cuisine</span>
+                    <strong>{formatLabel(recipe.cuisine)}</strong>
+                  </div>
+                )}
+                {recipe.total_time_minutes != null && (
+                  <div className="detail-fact">
+                    <span className="detail-fact-label">Total time</span>
+                    <strong>{formatDuration(recipe.total_time_minutes)}</strong>
+                  </div>
+                )}
+                {recipe.servings != null && (
+                  <div className="detail-fact detail-fact--servings">
+                    <span className="detail-fact-label">Serves</span>
+                    <strong>{formatServings(recipe.servings)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="macro-bar">
-          <div className="macro">
+          <div className="macro macro--calories">
             <strong>{recipe.calories == null ? '—' : recipe.calories}</strong>
             <span>kcal</span>
           </div>
-          <div className="macro">
+          <div className="macro macro--protein">
             <strong>{recipe.protein == null ? '—' : `${recipe.protein}g`}</strong>
             <span>protein</span>
           </div>
-          <div className="macro">
+          <div className="macro macro--fat">
             <strong>{recipe.fat == null ? '—' : `${recipe.fat}g`}</strong>
             <span>fat</span>
           </div>
-          <div className="macro">
+          <div className="macro macro--carbs">
             <strong>{recipe.carbs == null ? '—' : `${recipe.carbs}g`}</strong>
             <span>carbs</span>
           </div>
@@ -145,7 +160,7 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
         <div className="detail-grid">
           <section className="panel">
             <h2 className="panel-title">Ingredients</h2>
-            <p className="panel-hint">Hover a step to see what it uses.</p>
+            <p className="panel-hint">Ingredients are called out in the instructions.</p>
             <ul className="ingredients">
               {ingredients.map((item, i) => {
                 const position = i + 1
@@ -153,9 +168,7 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
                 return (
                   <Fragment key={`ingredient-${position}-${item}`}>
                     {groupName && <li className="group-heading">{groupName}</li>}
-                    <li className={activeIngredients.includes(i) ? 'is-active' : ''}>
-                      {item}
-                    </li>
+                    <li>{item}</li>
                   </Fragment>
                 )
               })}
@@ -171,11 +184,7 @@ export default function RecipeDetail({ isFavourite, toggleFavourite }) {
                 return (
                   <Fragment key={`instruction-${position}-${step}`}>
                     {groupName && <li className="group-heading">{groupName}</li>}
-                    <li
-                      className={hoveredStep === i ? 'is-hovered' : ''}
-                      onMouseEnter={() => setHoveredStep(i)}
-                      onMouseLeave={() => setHoveredStep(null)}
-                    >
+                    <li>
                       <span className="step-num">{position}</span>
                       <p>
                         {stepSegments(step, stepMatches[i], ingredients).map((seg, j) =>

@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react'
-import { categories } from '../data/categories'
+import { categories, tags } from '../data/categories'
 import useRecipes from '../hooks/useRecipes'
 import Filters from '../components/Filters'
 import RecipeCard from '../components/RecipeCard'
-import { categoryMatches } from '../utils/recipe'
+import { filterRecipes } from '../utils/recipe'
 
 export default function Home({ favouriteIds, isFavourite, toggleFavourite }) {
   const { recipes, maxCalories, loading, error, retry } = useRecipes()
   const [category, setCategory] = useState(categories[0])
+  const [tag, setTag] = useState(tags[0])
+  const [searchTerm, setSearchTerm] = useState('')
   const [calorieLimit, setCalorieLimit] = useState(null)
   const [showFavourites, setShowFavourites] = useState(false)
 
@@ -15,13 +17,15 @@ export default function Home({ favouriteIds, isFavourite, toggleFavourite }) {
 
   const visible = useMemo(
     () =>
-      (recipes ?? []).filter(
-        (r) =>
-          categoryMatches(r, category) &&
-          (r.calories == null || r.calories <= effectiveLimit) &&
-          (!showFavourites || favouriteIds.includes(r.slug)),
-      ),
-    [recipes, category, effectiveLimit, showFavourites, favouriteIds],
+      filterRecipes(recipes, {
+        category,
+        tag,
+        searchTerm,
+        calorieLimit: effectiveLimit,
+        showFavourites,
+        favouriteIds,
+      }),
+    [recipes, category, tag, searchTerm, effectiveLimit, showFavourites, favouriteIds],
   )
 
   if (loading && !recipes) {
@@ -69,12 +73,17 @@ export default function Home({ favouriteIds, isFavourite, toggleFavourite }) {
       <Filters
         category={category}
         setCategory={setCategory}
+        tag={tag}
+        setTag={setTag}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
         calorieLimit={effectiveLimit}
         setCalorieLimit={setCalorieLimit}
         maxCalories={maxCalories}
         showFavourites={showFavourites}
         setShowFavourites={setShowFavourites}
         favouriteCount={favouriteIds.length}
+        resultCount={visible.length}
       />
 
       {visible.length > 0 ? (
@@ -99,7 +108,7 @@ export default function Home({ favouriteIds, isFavourite, toggleFavourite }) {
           <p className="empty-sub">
             {showFavourites
               ? 'Tap the heart on any recipe to save it here.'
-              : 'Adjust the calorie limit or choose another type.'}
+              : 'Adjust the filters or try a different search.'}
           </p>
         </div>
       )}
