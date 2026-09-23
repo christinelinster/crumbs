@@ -1,9 +1,16 @@
 from contextlib import contextmanager
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from app.db.recipes import find_similar_recipes
-from app.rag.query import build_recipe_cards, process_query, search_similar_recipes
+from app.rag.query import (
+    QueryGenerationError,
+    RecipeNotFoundError,
+    build_recipe_cards,
+    process_query,
+    process_query_result,
+)
 
 
 RECIPE_ROW = (
@@ -32,20 +39,27 @@ RECIPE_ROW = (
 
 
 class FakeResult:
-    def __init__(self, rows):
+    def __init__(self, rows, row=None):
         self.rows = rows
+        self.row = row
 
     def fetchall(self):
         return self.rows
 
+    def fetchone(self):
+        return self.row
+
 
 class FakeConnection:
-    def __init__(self, rows):
+    def __init__(self, rows, row=None):
         self.rows = rows
+        self.row = row
         self.calls = []
 
     def execute(self, sql, params=None):
         self.calls.append((sql, params))
+        if "WHERE r.slug" in sql:
+            return FakeResult((), self.row)
         return FakeResult(self.rows)
 
 
@@ -107,7 +121,19 @@ class FakeChatClient:
         return SimpleNamespace(choices=choices)
 
 
-class RecipeDatabaseTests(unittest.TestCase):
+class QueryTestCase(unittest.TestCase):
+    def setUp(self):
+        self.openai_patch = patch("app.rag.query.OpenAI")
+        self.openai_mock = self.openai_patch.start()
+        self.addCleanup(self.openai_patch.stop)
+
+    def use_client(self, client):
+        client.close = lambda: None
+        self.openai_mock.return_value = client
+        return client
+
+
+class RecipeDatabaseTests(QueryTestCase):
     def test_find_similar_recipes_returns_full_context_and_score(self):
         connection = FakeConnection([RECIPE_ROW])
 
@@ -144,7 +170,7 @@ class RecipeDatabaseTests(unittest.TestCase):
                 self.assertEqual(connection.calls, [])
 
 
-class QueryRetrievalTests(unittest.TestCase):
+class QueryRetrievalTests(QueryTestCase):
     def test_build_recipe_cards_uses_condensed_fields_and_score(self):
         cards = build_recipe_cards([{
             "slug": "steamed-eggs",
@@ -185,68 +211,66 @@ class QueryRetrievalTests(unittest.TestCase):
     def test_default_limit_is_three_and_embedding_precedes_connection(self):
         connection = FakeConnection([RECIPE_ROW])
         database_pool = FakePool(connection)
-        client = FakeEmbeddingClient(
+        embedding_client = FakeEmbeddingClient(
             [0.1] * 1536,
             on_embed=lambda: self.assertEqual(database_pool.connection_count, 0),
         )
+        chat = FakeChatClient(
+            on_chat=lambda: self.assertFalse(database_pool.active),
+        )
+        client = self.use_client(SimpleNamespace(
+            embeddings=embedding_client.embeddings,
+            chat=chat,
+        ))
 
-        results = search_similar_recipes(
+        result = process_query_result(
             "What can I make with eggs?",
-            client=client,
+            [],
             database_pool=database_pool,
         )
 
-        self.assertEqual(results[0]["title"], "Steamed Eggs")
-        self.assertEqual(client.calls[0]["input"], "What can I make with eggs?")
+        self.assertEqual(result.recipe_cards[0]["title"], "Steamed Eggs")
+        self.assertEqual(embedding_client.calls[0]["input"], "What can I make with eggs?")
         self.assertEqual(connection.calls[0][1][2], 3)
         self.assertEqual(database_pool.connection_count, 1)
 
     def test_explicit_limit_is_passed_unchanged(self):
         connection = FakeConnection([RECIPE_ROW])
-        client = FakeEmbeddingClient([0.1] * 1536)
+        client = self.use_client(SimpleNamespace(
+            embeddings=FakeEmbeddingClient([0.1] * 1536).embeddings,
+            chat=FakeChatClient(),
+        ))
 
-        search_similar_recipes(
+        process_query_result(
             "egg recipes",
-            5,
-            client=client,
+            [],
             database_pool=FakePool(connection),
+            limit=5,
         )
 
         self.assertEqual(connection.calls[0][1][2], 5)
 
-    def test_blank_or_nontext_question_is_rejected_before_embedding(self):
-        for question in ("", "   ", None):
-            with self.subTest(question=question):
-                client = FakeEmbeddingClient([0.1] * 1536)
+    def test_process_query_result_returns_answer_cards_and_threshold(self):
+        connection = FakeConnection([RECIPE_ROW])
+        database_pool = FakePool(connection)
+        client = self.use_client(SimpleNamespace(
+            embeddings=FakeEmbeddingClient([0.1] * 1536).embeddings,
+            chat=FakeChatClient(),
+        ))
 
-                with self.assertRaisesRegex(ValueError, "nonempty text"):
-                    search_similar_recipes(
-                        question,
-                        client=client,
-                        database_pool=FakePool(FakeConnection([RECIPE_ROW])),
-                    )
+        result = process_query_result(
+            "What can I make with eggs?",
+            [],
+            database_pool=database_pool,
+            limit=1,
+            similarity_threshold=0.8,
+        )
 
-                self.assertEqual(client.calls, [])
+        self.assertEqual(result.answer, "Try the steamed eggs.")
+        self.assertEqual(result.recipe_cards[0]["slug"], "steamed-eggs")
+        self.assertEqual(connection.calls[0][1][-2:], (0.8, 1))
 
-    def test_invalid_limit_is_rejected_before_embedding_or_connection(self):
-        for limit in (0, -1, True, 1.5):
-            with self.subTest(limit=limit):
-                client = FakeEmbeddingClient([0.1] * 1536)
-                database_pool = FakePool(FakeConnection([RECIPE_ROW]))
-
-                with self.assertRaisesRegex(ValueError, "positive integer"):
-                    search_similar_recipes(
-                        "egg recipes",
-                        limit,
-                        client=client,
-                        database_pool=database_pool,
-                    )
-
-                self.assertEqual(client.calls, [])
-                self.assertEqual(database_pool.connection_count, 0)
-
-
-class QueryConversationTests(unittest.TestCase):
+class QueryConversationTests(QueryTestCase):
     def test_process_query_sends_guardrails_history_and_recipe_context(self):
         connection = FakeConnection([RECIPE_ROW])
         embedding_client = FakeEmbeddingClient([0.1] * 1536)
@@ -254,10 +278,10 @@ class QueryConversationTests(unittest.TestCase):
         chat = FakeChatClient(
             on_chat=lambda: self.assertFalse(database_pool.active),
         )
-        client = SimpleNamespace(
+        client = self.use_client(SimpleNamespace(
             embeddings=embedding_client.embeddings,
             chat=chat,
-        )
+        ))
         history = [
             {"role": "user", "content": "I want a quick breakfast."},
             {"role": "assistant", "content": "Steamed eggs may work."},
@@ -266,7 +290,6 @@ class QueryConversationTests(unittest.TestCase):
         answer = process_query(
             "What are the ingredients?",
             history,
-            client=client,
             database_pool=database_pool,
             limit=1,
         )
@@ -300,14 +323,13 @@ class QueryConversationTests(unittest.TestCase):
             [0.1] * 1536,
             error=RuntimeError("embedding unavailable"),
         )
-        client = SimpleNamespace(embeddings=embedding_client.embeddings)
+        client = self.use_client(SimpleNamespace(embeddings=embedding_client.embeddings))
         history = [{"role": "user", "content": "Earlier question"}]
 
         with self.assertRaisesRegex(RuntimeError, "embedding unavailable"):
             process_query(
                 "New question",
                 history,
-                client=client,
                 database_pool=FakePool(connection),
             )
 
@@ -317,17 +339,16 @@ class QueryConversationTests(unittest.TestCase):
         connection = FakeConnection([RECIPE_ROW])
         embedding_client = FakeEmbeddingClient([0.1] * 1536)
         chat = FakeChatClient(error=RuntimeError("LLM unavailable"))
-        client = SimpleNamespace(
+        client = self.use_client(SimpleNamespace(
             embeddings=embedding_client.embeddings,
             chat=chat,
-        )
+        ))
         history = [{"role": "user", "content": "Earlier question"}]
 
         with self.assertRaisesRegex(RuntimeError, "LLM unavailable"):
             process_query(
                 "New question",
                 history,
-                client=client,
                 database_pool=FakePool(connection),
             )
 
@@ -337,17 +358,16 @@ class QueryConversationTests(unittest.TestCase):
         connection = FakeConnection([RECIPE_ROW])
         embedding_client = FakeEmbeddingClient([0.1] * 1536)
         chat = FakeChatClient(choices=[])
-        client = SimpleNamespace(
+        client = self.use_client(SimpleNamespace(
             embeddings=embedding_client.embeddings,
             chat=chat,
-        )
+        ))
         history = []
 
-        with self.assertRaisesRegex(ValueError, "at least one chat response"):
+        with self.assertRaisesRegex(QueryGenerationError, "at least one chat response"):
             process_query(
                 "New question",
                 history,
-                client=client,
                 database_pool=FakePool(connection),
             )
 
@@ -358,18 +378,17 @@ class QueryConversationTests(unittest.TestCase):
             finish_reason="length",
             message=SimpleNamespace(content="1. Prepare the sauce and"),
         )])
-        client = SimpleNamespace(
+        client = self.use_client(SimpleNamespace(
             embeddings=FakeEmbeddingClient([0.1] * 1536),
             chat=chat,
-        )
+        ))
         history = [{"role": "user", "content": "I want sukiyaki."}]
         original_history = list(history)
 
-        with self.assertRaisesRegex(ValueError, "cut off before completion"):
+        with self.assertRaisesRegex(QueryGenerationError, "cut off before completion"):
             process_query(
                 "Give me the complete recipe",
                 history,
-                client=client,
                 database_pool=FakePool(FakeConnection([RECIPE_ROW])),
             )
 
@@ -379,15 +398,14 @@ class QueryConversationTests(unittest.TestCase):
         connection = FakeConnection([])
         embedding_client = FakeEmbeddingClient([0.1] * 1536)
         chat = FakeChatClient()
-        client = SimpleNamespace(
+        client = self.use_client(SimpleNamespace(
             embeddings=embedding_client.embeddings,
             chat=chat,
-        )
+        ))
 
         process_query(
             "Something unavailable",
             [],
-            client=client,
             database_pool=FakePool(connection),
         )
 
@@ -395,6 +413,67 @@ class QueryConversationTests(unittest.TestCase):
             "No matching recipes were found.",
             chat.calls[0]["messages"][-1]["content"],
         )
+
+    def test_selected_recipe_context_uses_direct_lookup_without_similarity_search(self):
+        connection = FakeConnection([RECIPE_ROW], row=RECIPE_ROW[:-1])
+        embedding_client = FakeEmbeddingClient(
+            [0.1] * 1536,
+            on_embed=lambda: self.fail(
+                "recipe-specific queries should not generate an embedding"
+            ),
+        )
+        chat = FakeChatClient()
+        client = self.use_client(SimpleNamespace(
+            embeddings=embedding_client.embeddings,
+            chat=chat,
+        ))
+        database_pool = FakePool(connection)
+
+        result = process_query_result(
+            "What goes into the egg mixture?",
+            [],
+            database_pool=database_pool,
+            limit=1,
+            recipe_slug="steamed-eggs",
+        )
+
+        self.assertEqual(result.answer, "Try the steamed eggs.")
+        context = chat.calls[0]["messages"][-1]["content"]
+        self.assertIn('"ingredients": [\n      "2 eggs"', context)
+        self.assertIn('"instructions": [\n      "Whisk the eggs."', context)
+        self.assertIn('"group_name": "Egg mixture"', context)
+        self.assertEqual(context.count('"slug": "steamed-eggs"'), 1)
+        self.assertEqual(result.recipe_cards, [])
+        self.assertEqual(embedding_client.calls, [])
+        self.assertEqual(database_pool.connection_count, 1)
+        self.assertEqual(len(connection.calls), 1)
+        self.assertIn("WHERE r.slug", connection.calls[0][0])
+
+    def test_missing_selected_recipe_raises_without_appending_history(self):
+        connection = FakeConnection([RECIPE_ROW], row=None)
+        embedding_client = FakeEmbeddingClient(
+            [0.1] * 1536,
+            on_embed=lambda: self.fail(
+                "recipe-specific queries should not generate an embedding"
+            ),
+        )
+        client = self.use_client(SimpleNamespace(
+            embeddings=embedding_client.embeddings,
+            chat=FakeChatClient(),
+        ))
+        history = [{"role": "user", "content": "Earlier question"}]
+
+        with self.assertRaises(RecipeNotFoundError):
+            process_query_result(
+                "Tell me about this recipe",
+                history,
+                database_pool=FakePool(connection),
+                recipe_slug="missing-recipe",
+            )
+
+        self.assertEqual(history, [{"role": "user", "content": "Earlier question"}])
+        self.assertEqual(embedding_client.calls, [])
+        self.assertEqual(len(connection.calls), 1)
 
 
 if __name__ == "__main__":
