@@ -1,6 +1,6 @@
 # Product requirements
 
-**Status:** Draft
+**Status:** Approved for current MVP direction
 
 ## Query behavior
 
@@ -44,6 +44,43 @@ details.
 
 A failed embedding, retrieval, LLM call, or in-memory history update must
 produce an explicit failure rather than silently returning an ungrounded answer.
+
+### REQ-QUERY-008
+
+The production chat model must be selected through the `OPENAI_CHAT_MODEL`
+environment setting rather than being hard-coded into the client.
+
+### REQ-QUERY-009
+
+The application must expose an optional similarity threshold for evaluation and
+tuning. The threshold is selected by application code and is not chosen by the
+LLM.
+
+## Stable chat contract
+
+### REQ-API-001
+
+The chat request must accept a `question`, ordered in-memory `history`, an
+optional retrieval `limit`, an optional `similarity_threshold`, and an optional
+`recipe_slug` for recipe-specific context.
+
+History messages use the shape `{role, content}` with `role` equal to `user` or
+`assistant`. System instructions are not supplied by the client.
+
+### REQ-API-002
+
+The chat response must be an object containing an `answer` string and a
+`recipe_cards` array. Each recipe card must include the persisted `slug`,
+`title`, category and tag arrays, time and nutrition metadata, and numeric
+`similarity_score`. These are the same condensed fields used by the home-page
+recipe cards.
+
+### REQ-API-003
+
+The client must use the recipe card `slug` to create clickable links to the
+corresponding recipe-detail route. Similarity scores remain structured data so
+the client can render them as secondary visual information rather than asking
+the LLM to append formatting to the answer.
 
 ## Scope boundary
 

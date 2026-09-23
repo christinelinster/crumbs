@@ -1,12 +1,12 @@
 # Crumbs architecture
 
-**Status:** Draft
+**Status:** Approved for current MVP direction
 
 ## System boundary
 
 Crumbs is the reusable RAG layer and owns recipe ingestion, structured recipe
 storage, embeddings, similarity retrieval, and grounded response generation.
-Clients consume these capabilities through a future HTTP API rather than
+Clients consume these capabilities through the shared HTTP API rather than
 importing Python modules or connecting directly to Postgres. Bitesize is the
 first reference client and belongs under `clients/bitesize/`; it is not part of
 the RAG core.
@@ -14,18 +14,32 @@ the RAG core.
 ## Repository layout
 
 ```text
-src/app/          Python RAG, ingestion, database, and CLI code
+src/app/          Python RAG, ingestion, database, API, and CLI code
 clients/bitesize/ React/Vite reference client
-backend/          Future shared Crumbs API layer
 data/             Development recipe corpus and import inputs
 docs/             Product, architecture, decision, and operating documentation
 ```
 
 The Bitesize client remains independently runnable with its own JavaScript
-dependencies. The future API translates the generic Crumbs recipe contract into
+dependencies. The shared API translates the generic Crumbs recipe contract into
 the client-facing response shape. Bitesize's existing Express backend and seed
 data are not copied into this repository because they represent a separate
 recipe schema and persistence flow.
+
+## Stable client contract
+
+The implemented `POST /api/chat` endpoint accepts a question, ordered in-memory history, an
+optional application-selected retrieval limit, an optional similarity
+threshold, and an optional recipe slug. It returns an object containing the
+assistant `answer` and `recipe_cards`. A recipe card contains the persisted
+`slug`, `title`, category and tag arrays, time and nutrition metadata, and
+numeric `similarity_score`. These are the same condensed fields used by the
+home-page recipe cards. The slug is the only navigation identifier exposed to
+the client; embeddings and database implementation details are not returned.
+
+The application uses `3` as the default retrieval limit. There is no
+product-level maximum in the MVP. The client may render the similarity score as
+small, light-gray supporting text.
 
 ## Client data flow
 
@@ -59,31 +73,43 @@ recipe writes and retrieval before independent corpora are enabled.
 
 ```mermaid
 sequenceDiagram
-    participant User
+    participant Bitesize
+    participant API as Crumbs API
     participant Query as Query service
     participant Embed as Embedding model
     participant DB as Postgres
     participant LLM
 
-    User->>Query: question, in-memory history, optional limit
-    Query->>Embed: generate_embedding(question)
-    Embed-->>Query: query vector
-    Query->>DB: lease short-lived connection
-    Query->>DB: search recipes(vector, limit)
-    DB-->>Query: structured recipe context
-    Query-->>DB: release connection after similarity search
+    Bitesize->>API: POST /api/chat with question, history, limit, threshold, optional slug
+    API->>Query: validated chat request
+    alt recipe_slug provided
+        Query->>DB: lease short-lived connection
+        Query->>DB: get recipe by slug
+        DB-->>Query: exact recipe context
+        Query-->>DB: release connection after direct lookup
+    else no recipe_slug
+        Query->>Embed: generate_embedding(question)
+        Embed-->>Query: query vector
+        Query->>DB: lease short-lived connection
+        Query->>DB: search recipes(vector, limit)
+        DB-->>Query: structured recipe context and scores
+        Query-->>DB: release connection after similarity search
+    end
     Query->>LLM: system prompt + history + recipe context
     LLM-->>Query: grounded answer
     Query->>Query: append history after successful answer
-    Query-->>User: answer
+    Query-->>API: answer and recipe cards
+    API-->>Bitesize: JSON chat response
 ```
 
-The application chooses `limit`, using `3` by default, and passes it to a
-retrieval operation equivalent to `search_similar_recipes(question, limit)`.
-The retrieval operation embeds the question through the shared helper before
-leasing a database connection, then uses vector similarity ordering against
-`recipes.embedding`. The connection is held only for the similarity query and
-is released before the LLM request begins.
+The application chooses `limit`, using `3` by default, and passes it to
+`process_query_result`. With no `recipe_slug`, the function embeds the question
+through the shared helper, leases one database connection, and uses vector
+similarity ordering against `recipes.embedding`. With a `recipe_slug`, it
+directly retrieves that exact recipe and skips embedding and similarity search.
+In both paths, the connection is released before the LLM request begins. Only
+the similarity-search path produces scored recipe cards; the selected recipe is
+already represented by the detail page.
 
 ## Persistence
 
@@ -94,10 +120,15 @@ instructions remain application-controlled rather than becoming user-editable
 history. Conversation history has no database identifier and is never persisted.
 Exiting the process discards the history.
 
-The query flow generates the query embedding before leasing a connection, reads
-the selected recipe context from Postgres, releases the connection for the LLM
-request, and then appends the user and assistant messages to in-memory history.
-If embedding, retrieval, or the LLM request fails, history is not appended.
+For general questions, the query flow generates the query embedding before
+leasing a connection and reads the selected complete recipe context and
+similarity scores from Postgres. For recipe-specific questions, it reads the
+complete recipe directly by slug without generating an embedding. The
+similarity results can be projected into condensed recipe cards for the client.
+Retrieved recipe context is request-scoped and is not appended to history. The
+user and assistant messages are appended to in-memory history only after a
+successful answer. If embedding, retrieval, or the LLM request fails, history
+is not appended.
 
 ## Prompt boundary
 
