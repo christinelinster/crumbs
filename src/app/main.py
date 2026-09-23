@@ -1,7 +1,3 @@
-import os
-
-from openai import OpenAI
-
 from app.db.connection import pool
 from app.rag.query import process_query
 
@@ -13,11 +9,7 @@ def main():
     print("What would you like to make today?\n")
     history = []
 
-    with OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        timeout=60.0,
-        max_retries=2,
-    ) as client, pool:
+    with pool:
         while True:
             question = input("\nUser: ")
             if question.strip().lower() == "quit":
@@ -27,7 +19,6 @@ def main():
                 response = process_query(
                     question,
                     history,
-                    client=client,
                 )
             except (OSError, RuntimeError, ValueError) as error:
                 print(f"\nUnable to answer: {error}")

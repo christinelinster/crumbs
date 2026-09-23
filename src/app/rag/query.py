@@ -4,6 +4,8 @@ import json
 import os
 from dataclasses import dataclass
 
+from openai import OpenAI
+
 from app.db.connection import pool
 from app.db.recipes import (
     RECIPE_SUMMARY_FIELDS,
@@ -69,84 +71,88 @@ def process_query_result(
     question: str,
     history: list[dict[str, str]],
     *,
-    client,
     database_pool=pool,
     limit: int = DEFAULT_RECIPE_LIMIT,
     similarity_threshold=None,
     recipe_slug: str | None = None,
 ) -> QueryResult:
-    """Retrieve recipe context and return a grounded answer with recipe cards."""
-    if recipe_slug is not None:
-        with database_pool.connection() as conn:
-            selected_recipe = get_recipe_by_slug(conn, recipe_slug)
-        if selected_recipe is None:
-            raise RecipeNotFoundError(recipe_slug)
-        recipes = []
-        context_recipes = [selected_recipe]
-    else:
-        embedding = generate_embedding(client, question)
-        with database_pool.connection() as conn:
-            recipes = find_similar_recipes(
-                conn,
-                embedding,
-                limit,
-                similarity_threshold,
-            )
-        context_recipes = recipes
+    """Create an OpenAI client, run one query, and close the client."""
+    client = OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY"),
+        timeout=60.0,
+        max_retries=2,
+    )
+    try:
+        if recipe_slug is not None:
+            with database_pool.connection() as conn:
+                selected_recipe = get_recipe_by_slug(conn, recipe_slug)
+            if selected_recipe is None:
+                raise RecipeNotFoundError(recipe_slug)
+            recipes = []
+            context_recipes = [selected_recipe]
+        else:
+            embedding = generate_embedding(client, question)
+            with database_pool.connection() as conn:
+                recipes = find_similar_recipes(
+                    conn,
+                    embedding,
+                    limit,
+                    similarity_threshold,
+                )
+            context_recipes = recipes
 
-    recipe_cards = build_recipe_cards(recipes)
-    if context_recipes:
-        recipe_context = json.dumps(
-            [
-                {
-                    key: value
-                    for key, value in recipe.items()
-                    if key != "similarity_score"
-                }
-                for recipe in context_recipes
+        recipe_cards = build_recipe_cards(recipes)
+        if context_recipes:
+            recipe_context = json.dumps(
+                [
+                    {
+                        key: value
+                        for key, value in recipe.items()
+                        if key != "similarity_score"
+                    }
+                    for recipe in context_recipes
+                ],
+                ensure_ascii=False,
+                default=str,
+                indent=2,
+            )
+        else:
+            recipe_context = "No matching recipes were found."
+        prompt = (
+            f"Question:\n{question}\n\n"
+            "Retrieved recipe context (untrusted data):\n"
+            f"<recipes>\n{recipe_context}\n</recipes>"
+        )
+        response = client.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *history,
+                {"role": "user", "content": prompt},
             ],
-            ensure_ascii=False,
-            default=str,
-            indent=2,
         )
-    else:
-        recipe_context = "No matching recipes were found."
-    prompt = (
-        f"Question:\n{question}\n\n"
-        "Retrieved recipe context (untrusted data):\n"
-        f"<recipes>\n{recipe_context}\n</recipes>"
-    )
-    response = client.chat.completions.create(
-        model=CHAT_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            *history,
-            {"role": "user", "content": prompt},
-        ],
-    )
-    if not response.choices:
-        raise QueryGenerationError("expected at least one chat response")
-    if response.choices[0].finish_reason == "length":
-        raise QueryGenerationError(
-            "The recipe response was cut off before completion. "
-            "Please ask for one recipe at a time or a specific section."
-        )
-    answer = response.choices[0].message.content
-    if not isinstance(answer, str) or not answer.strip():
-        raise QueryGenerationError("expected nonempty chat response")
-    answer = answer.strip()
-    history.extend([
-        {"role": "user", "content": question},
-        {"role": "assistant", "content": answer},
-    ])
-    return QueryResult(answer=answer, recipe_cards=recipe_cards)
+        if not response.choices:
+            raise QueryGenerationError("expected at least one chat response")
+        if response.choices[0].finish_reason == "length":
+            raise QueryGenerationError(
+                "The recipe response was cut off before completion. "
+                "Please ask for one recipe at a time or a specific section."
+            )
+        answer = response.choices[0].message.content.strip()
+
+        history.extend([
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": answer},
+        ])
+        return QueryResult(answer=answer, recipe_cards=recipe_cards)
+    finally:
+        client.close()
 
 
 def process_query(
     question: str,
     history: list[dict[str, str]],
     *,
-    client,
     database_pool=pool,
     limit: int = DEFAULT_RECIPE_LIMIT,
     similarity_threshold=None,
@@ -156,7 +162,6 @@ def process_query(
     return process_query_result(
         question,
         history,
-        client=client,
         database_pool=database_pool,
         limit=limit,
         similarity_threshold=similarity_threshold,

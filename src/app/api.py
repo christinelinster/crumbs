@@ -1,16 +1,52 @@
 """Read-only HTTP API for the Crumbs recipe corpus."""
 
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Path
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.db.connection import pool
 from app.db.recipes import get_recipe_by_slug, list_recipe_summaries
+from app.rag.query import (
+    QueryGenerationError,
+    RecipeNotFoundError,
+    process_query_result,
+)
 
 
 Number = int | float | None
+
+
+class ChatMessage(BaseModel):
+    """A user or assistant message supplied as conversation context."""
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1)
+
+    @field_validator("content")
+    @classmethod
+    def require_nonempty_content(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("content must be nonempty text")
+        return value
+
+
+class ChatRequest(BaseModel):
+    """Input contract for the grounded chat endpoint."""
+
+    question: str = Field(min_length=1)
+    history: list[ChatMessage] = Field(default_factory=list)
+    limit: int = Field(default=3, gt=0)
+    similarity_threshold: float | None = Field(default=None, ge=-1, le=1)
+    recipe_slug: str | None = None
+
+    @field_validator("question")
+    @classmethod
+    def require_nonempty_question(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("question must be nonempty text")
+        return value
 
 
 class RecipeSummary(BaseModel):
@@ -25,6 +61,19 @@ class RecipeSummary(BaseModel):
     protein: Number
     carbs: Number
     fat: Number
+
+
+class RecipeCard(RecipeSummary):
+    """A condensed recipe reference returned from similarity retrieval."""
+
+    similarity_score: float
+
+
+class ChatResponse(BaseModel):
+    """Public response contract for a grounded chat request."""
+
+    answer: str
+    recipe_cards: list[RecipeCard]
 
 
 class RecipeGroupMarker(BaseModel):
@@ -51,15 +100,15 @@ class RecipeDetail(RecipeSummary):
 
 
 def create_app(database_pool=pool) -> FastAPI:
-    """Build the recipe API with an injectable connection pool."""
+    """Build the recipe and chat API."""
 
     @asynccontextmanager
-    async def lifespan(_app: FastAPI):
+    async def lifespan(api: FastAPI):
         with database_pool:
             yield
 
     api = FastAPI(
-        title="Crumbs Recipe API",
+        title="Crumbs API",
         lifespan=lifespan,
     )
 
@@ -83,6 +132,35 @@ def create_app(database_pool=pool) -> FastAPI:
                 detail=f"recipe not found: {slug}",
             )
         return recipe
+
+    @api.post("/api/chat", response_model=ChatResponse)
+    def chat(request: ChatRequest) -> ChatResponse:
+        history = [message.model_dump() for message in request.history]
+        try:
+            result = process_query_result(
+                request.question,
+                history,
+                database_pool=database_pool,
+                limit=request.limit,
+                similarity_threshold=request.similarity_threshold,
+                recipe_slug=request.recipe_slug,
+            )
+        except RecipeNotFoundError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except QueryGenerationError as error:
+            raise HTTPException(
+                status_code=502,
+                detail="chat model returned an invalid response",
+            ) from error
+        except (OSError, RuntimeError, ValueError) as error:
+            raise HTTPException(
+                status_code=503,
+                detail="chat service unavailable",
+            ) from error
+        return ChatResponse(
+            answer=result.answer,
+            recipe_cards=result.recipe_cards,
+        )
 
     return api
 
