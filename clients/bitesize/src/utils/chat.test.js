@@ -102,7 +102,7 @@ test('parses assistant headings and lists into renderable blocks', () => {
       { type: 'heading', level: 3, text: 'Ingredients' },
       { type: 'unordered-list', items: ['2 eggs', '1 cup water'] },
       { type: 'heading', level: 3, text: 'Method' },
-      { type: 'ordered-list', items: ['Whisk the eggs.'] },
+      { type: 'ordered-list', start: 1, items: ['Whisk the eggs.'] },
     ],
   )
 })
@@ -113,9 +113,25 @@ test('parses walkthrough steps and their per-step ingredient lists', () => {
       '1. Whisk the eggs until smooth.\nIngredients for this step:\n- 2 eggs\n- 1 cup water',
     ),
     [
-      { type: 'ordered-list', items: ['Whisk the eggs until smooth.'] },
+      { type: 'ordered-list', start: 1, items: ['Whisk the eggs until smooth.'] },
       { type: 'paragraph', text: 'Ingredients for this step:' },
       { type: 'unordered-list', items: ['2 eggs', '1 cup water'] },
+    ],
+  )
+})
+
+test('preserves the step number when ingredient bullets split ordered lists', () => {
+  assert.deepEqual(
+    parseAssistantContent(
+      '1. Whisk the eggs.\nIngredients for this step:\n- 2 eggs\n\n2. Steam until set.\nIngredients for this step:\n- 1 cup water',
+    ),
+    [
+      { type: 'ordered-list', start: 1, items: ['Whisk the eggs.'] },
+      { type: 'paragraph', text: 'Ingredients for this step:' },
+      { type: 'unordered-list', items: ['2 eggs'] },
+      { type: 'ordered-list', start: 2, items: ['Steam until set.'] },
+      { type: 'paragraph', text: 'Ingredients for this step:' },
+      { type: 'unordered-list', items: ['1 cup water'] },
     ],
   )
 })
@@ -126,6 +142,7 @@ test('keeps numbered recommendations in one list across blank lines', () => {
     [
       {
         type: 'ordered-list',
+        start: 1,
         items: ['Sukiyaki fits.', 'Beef noodle soup fits.'],
       },
     ],

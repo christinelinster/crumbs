@@ -71,16 +71,19 @@ function AssistantAnswer({ content }) {
 
         if (block.type === 'unordered-list' || block.type === 'ordered-list') {
           const List = block.type === 'ordered-list' ? 'ol' : 'ul'
+          const listItems = block.items.map((item, itemIndex) => (
+            <li key={`${index}-${itemIndex}`}>
+              <InlineMarkdown text={item} />
+            </li>
+          ))
+
           return (
             <List
               className={`chat-answer-list chat-answer-list--${block.type}`}
               key={`list-${index}`}
+              start={block.type === 'ordered-list' ? block.start : undefined}
             >
-              {block.items.map((item, itemIndex) => (
-                <li key={`${index}-${itemIndex}`}>
-                  <InlineMarkdown text={item} />
-                </li>
-              ))}
+              {listItems}
             </List>
           )
         }

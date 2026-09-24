@@ -35,6 +35,14 @@ const FILTER_RECIPES = [
     cuisine: 'American',
     calories: 300,
   },
+  {
+    slug: 'high-protein-meal-prep-breakfast',
+    title: 'High Protein Meal Prep Breakfast',
+    category: ['breakfast'],
+    tags: ['high-protein', 'high-fiber', 'low-carb', 'meal-prep'],
+    cuisine: 'American',
+    calories: 400,
+  },
 ]
 
 test('normalizes canonical arrays without changing their values', () => {
@@ -88,11 +96,25 @@ test('uses the corpus taxonomy for category and tag filters', () => {
     'All',
     'Beef',
     'Chicken',
-    'No Cook',
+    'High Fiber',
+    'High Protein',
+    'Low Carb',
+    'Meal Prep',
     'One Pot',
     'Pork',
+    'Sheet Pan',
     'Soup',
+    'Stew',
   ])
+})
+
+test('filters recipes using macro-friendly and meal prep tag labels', () => {
+  for (const tag of ['High Protein', 'High Fiber', 'Low Carb', 'Meal Prep']) {
+    assert.deepEqual(
+      filterRecipes(FILTER_RECIPES, { tag }),
+      [FILTER_RECIPES[3]],
+    )
+  }
 })
 
 test('filters category and tag facets independently and searches recipe summaries', () => {

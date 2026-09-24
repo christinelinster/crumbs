@@ -14,10 +14,15 @@ export const tags = [
   'All',
   'Beef',
   'Chicken',
-  'No Cook',
+  'High Fiber',
+  'High Protein',
+  'Low Carb',
+  'Meal Prep',
   'One Pot',
   'Pork',
+  'Sheet Pan',
   'Soup',
+  'Stew',
 ]
 
 export const RECIPE_ICON = 'bowl'

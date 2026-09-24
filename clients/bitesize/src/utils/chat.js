@@ -73,6 +73,7 @@ export function parseAssistantContent(content) {
   let paragraphLines = []
   let listType = null
   let listItems = []
+  let listStart = null
 
   function flushParagraph() {
     if (paragraphLines.length === 0) return
@@ -82,9 +83,12 @@ export function parseAssistantContent(content) {
 
   function flushList() {
     if (listItems.length === 0) return
-    blocks.push({ type: listType, items: listItems })
+    const block = { type: listType, items: listItems }
+    if (listType === 'ordered-list') block.start = listStart
+    blocks.push(block)
     listType = null
     listItems = []
+    listStart = null
   }
 
   function flushBlocks() {
@@ -95,7 +99,7 @@ export function parseAssistantContent(content) {
   for (const line of String(content ?? '').split(/\r?\n/)) {
     const heading = line.match(/^\s*(#{1,3})\s+(.+?)\s*#*\s*$/)
     const unorderedItem = line.match(/^\s*[-*]\s+(.+)$/)
-    const orderedItem = line.match(/^\s*\d+[.)]\s+(.+)$/)
+    const orderedItem = line.match(/^\s*(\d+)[.)]\s+(.+)$/)
 
     if (heading) {
       flushBlocks()
@@ -110,9 +114,12 @@ export function parseAssistantContent(content) {
     if (unorderedItem || orderedItem) {
       flushParagraph()
       const nextListType = unorderedItem ? 'unordered-list' : 'ordered-list'
-      if (listType !== nextListType) flushList()
-      listType = nextListType
-      listItems.push((unorderedItem || orderedItem)[1])
+      if (listType !== nextListType) {
+        flushList()
+        listType = nextListType
+        if (nextListType === 'ordered-list') listStart = Number(orderedItem[1])
+      }
+      listItems.push(unorderedItem ? unorderedItem[1] : orderedItem[2])
       continue
     }
 
