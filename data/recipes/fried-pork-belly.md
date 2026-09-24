@@ -37,10 +37,10 @@ carbs: 15
 
 ## Instructions
 
-1. Cut the pork belly into 1/2-inch thick slices. Place the sliced pork belly into the marinade bowl and mix to thoroughly cover. Set aside
-2. In a medium bowl, combine the red fermented bean curd, sugar, oyster sauce and white pepper. Mix together with a spoon.
-3. In a small bowl, combine the cornstarch, flour, baking powder and water. Stir until there are no more visible clumps.
-4. Heat a wok on high heat. While the wok is heating, add half of the batter to the marinated pork belly and use a spoon to mix and coat the pieces.
+1. Slice the pork belly into 1/2-inch pieces and set aside.
+2. Mix the fermented bean curd, sugar, oyster sauce, and white pepper in a medium bowl. Add the pork and toss to coat.
+3. Whisk the cornstarch, flour, baking powder, and water in a small bowl until smooth.
+4. Heat a wok over high heat. Mix half the batter into the marinated pork to coat.
 
 
 ## Notes

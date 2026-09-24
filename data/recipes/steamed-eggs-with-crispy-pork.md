@@ -42,17 +42,17 @@ carbs: 2
 ## Instructions
 
 ### Marinate the ground meat:
-1. Combine the ground meat with all the marinade ingredients. Stir until the meat has absorbed any standing liquid. Marinate for 15-20 minutes while you prepare the egg mixture.
+1. Mix the ground meat with the marinade ingredients until the liquid is absorbed. Marinate for 15-20 minutes while preparing the eggs.
 ### Make the egg mixture:
-2. To make the egg mixture, crack 3 eggs into a liquid measuring cup and note the volume. Pour the eggs into a large bowl, add salt, and beat for at least 1 minute.
-3. Measure the same volume of water, and add it to the bowl. Do the same with the stock. Whisk the mixture all together along with 1 teaspoon sesame oil, and make sure everything's well combined.
+2. Crack 3 eggs into a measuring cup and note the volume. Pour them into a bowl, add salt, and beat for at least 1 minute.
+3. Measure equal volumes of water and stock. Add them to the eggs with 1 teaspoon sesame oil and whisk well.
 ### Steam the eggs:
-4. Place a heat-proof shallow bowl in a steamer over high heat. Be sure any water in your steamer will not be able to bubble up and touch the bowl during the steaming process.
-5. Once boiling, turn the heat down to a simmer. Then, pour the egg mixture into the heated bowl through a fine mesh strainer.
-6. Cover the steamer, turn up the heat to high, and steam the eggs for 3 minutes. After 3 minutes have elapsed, shut off the heat, but keep the steamer covered. Let stand for 14 minutes with the lid firmly covered. Cook the meat during this time.
+4. Set a shallow heatproof bowl in a steamer over high heat. Keep the water below the bowl.
+5. Once the water boils, reduce it to a simmer. Pour the egg mixture through a fine-mesh strainer into the warm bowl.
+6. Cover and steam on high for 3 minutes. Turn off the heat and rest, covered, for 14 minutes. Cook the meat during this time.
 ### Brown the meat:
-7. Heat a wok over high heat until it starts to smoke. Add 1 tablespoon oil. Brown the marinated meat over high heat until any liquid has cooked off and the bits of ground meat are crispy. Avoid stirring too much in order to give the meat a chance to brown and crisp.
-8. Add in the chopped scallion, mix well and turn off the heat. Once the steamed eggs are done cooking, remove from the steamer, top with the cooked meat, and serve!
+7. Heat a wok over high heat until smoking. Add 1 tablespoon oil and fry the marinated meat until the liquid evaporates and the meat is crispy. Stir as little as possible so it browns.
+8. Add the scallion and mix. Turn off the heat. Top the steamed eggs with the pork and serve.
 
 
 ## Notes

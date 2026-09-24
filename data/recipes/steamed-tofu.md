@@ -32,13 +32,13 @@ carbs: 5
 
 ## Instructions
 
-1. Cut the block of tofu in half lengthwise and then slice it crosswise into ½-inch slices. Use your knife or cleaver to transfer each half of the cut tofu to a large heatproof rimmed plate or shallow bowl. The dish should be deep enough to hold the steaming liquid and sauce.
-2. Lay the tofu on the plate so the pieces are fanned out evenly, with as much tofu surface area exposed as possible. Sprinkle the salt evenly over the tofu.
-3. Next, steam the tofu. Add 4 cups of cold water to a wok, place the tofu on a steaming rack inside, and cover the wok.
-4. Turn on the heat to medium-high. The water should boil in about 7 minutes. After it has begun boiling, continue to steam for another 3 minutes––a total of 10 minutes.
-5. Meanwhile, make the sauce. Heat a wok or small saucepan over medium high heat, and add the oil. Add the ginger, and fry for 1 minute. Add the white parts of the scallions and cook for 30 seconds. Then add the rest of the scallions and cilantro. The mixture should be sizzling.
-6. Add the soy sauce, sugar, and water. Bring to a bubble, and cook until the scallions and cilantro are just wilted, about 30 seconds.
-7. When the tofu is done, turn the heat off, and carefully pour off the liquid that has pooled at the bottom of the plate. Sprinkle the tofu evenly with the white pepper, and then pour the sauce over the top. Serve immediately!
+1. Cut the tofu in half lengthwise, then slice crosswise into ½-inch pieces. Arrange on a deep, heatproof plate.
+2. Fan the tofu out to expose as much surface as possible. Sprinkle evenly with salt.
+3. Add 4 cups cold water to a wok. Place the tofu on a steaming rack, cover, and heat over medium-high. The water should boil in about 7 minutes.
+4. Steam for 3 minutes after the water boils, for 10 minutes total.
+5. Meanwhile, heat the oil in a wok or saucepan over medium-high heat. Fry the ginger for 1 minute. Add the scallion whites and cook for 30 seconds, then add the remaining scallions and cilantro.
+6. Add the soy sauce, sugar, and water. Bring to a bubble and cook for about 30 seconds, until the greens wilt.
+7. Turn off the heat and carefully pour the liquid from the tofu plate. Sprinkle with white pepper and pour the sauce over the tofu. Serve immediately.
 
 
 ## Notes

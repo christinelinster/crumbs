@@ -41,10 +41,10 @@ carbs: 2
 
 ## Instructions
 
-1. In a medium bowl, add the sliced beef along with the marinade ingredients: water, salt, baking soda, cornstarch, sesame oil, neutral oil, and oyster sauce. Mix well and marinate for 15-30 minutes.
-2. Meanwhile, beat the eggs with white pepper, salt, sesame oil, and Shaoxing wine. Mix the cornstarch with 2 tablespoons of water until combined. Add the cornstarch slurry to the beaten eggs along with the scallion. Beat again to incorporate everything together, and you are ready to cook.
-3. Place your wok or frying pan over medium-high heat until it starts to smoke (or just until it’s hot, if using a nonstick pan). Add the oil, and cook the beef in a single layer for 20 seconds on each side.
-4. Beat the eggs one more time, and then pour evenly over the beef and reduce the heat to medium. With your spatula, gently push the eggs across the wok a few times—you don't want the eggs to brown. Once you see no more runny eggs, the dish is done. Dish it up immediately and serve!
+1. Mix the beef with the water, salt, baking soda, cornstarch, sesame oil, neutral oil, and oyster sauce. Marinate for 15-30 minutes.
+2. Beat the eggs with white pepper, salt, sesame oil, and Shaoxing wine. Mix the cornstarch with 2 tablespoons water, then whisk it into the eggs with the scallion.
+3. Heat a wok or frying pan over medium-high heat until hot. Add the oil and sear the beef in a single layer for 20 seconds per side.
+4. Beat the eggs again and pour them over the beef. Reduce the heat to medium and gently push the eggs around the pan without browning them. Serve as soon as no liquid egg remains.
 
 
 ## Notes

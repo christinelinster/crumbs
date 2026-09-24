@@ -43,12 +43,12 @@ carbs: 14
 
 ## Instructions
 
-1. Start by marinating your chicken. In a bowl, add the sliced chicken, water, oyster sauce, cornstarch, and oil. Rub the marinade ingredients into the chicken with your hands until all the liquid has been absorbed. Set aside.
-2. Next, prepare the sauce mixture. In a small bowl or measuring cup, mix the chicken stock, sugar, soy sauce, dark soy sauce , oyster sauce, sesame oil and white pepper.
-3. Boil water in your wok and blanch the broccoli for 1 minute (or 2 minutes if you like it softer). Drain and set aside.
-4. Clean and dry your wok. Place it over high heat until smoking. Add 2 tablespoons oil and sear the chicken for a couple minutes, until opaque on all sides and about 90% done. Turn off the heat, remove the chicken, and set aside.
-5. Without washing the wok, set the flame to medium heat. Add the remaining tablespoon of oil, along with the garlic and ginger (if using). Stir the garlic and ginger for 5 seconds and add the Shaoxing wine around the perimeter of the wok. Then pour in the sauce mixture. Use your wok spatula to stir the sauce around the sides of the wok to deglaze, and let it come to a simmer.
-6. Stir up the cornstarch and water slurry and drizzle the mixture into sauce while stirring constantly. Allow the sauce to simmer for 10 to 15 seconds until thick and gravy-like. Toss in the chicken and its juices and the blanched broccoli. Stir-fry until the chicken and broccoli is coated in the sauce. Serve with steamed rice.
+1. Toss the sliced chicken with the water, oyster sauce, cornstarch, and oil. Rub until the liquid is absorbed; set aside.
+2. Mix the chicken stock, sugar, soy sauces, oyster sauce, sesame oil, and white pepper for the sauce.
+3. Blanch the broccoli in boiling water for 1 minute, or 2 minutes for softer broccoli. Drain.
+4. Clean and dry the wok. Heat over high heat until smoking. Add 2 tablespoons oil and sear the chicken for a couple minutes, until opaque and about 90% cooked. Remove the chicken.
+5. Reduce the heat to medium. Add the remaining tablespoon oil, garlic, and ginger, if using. Stir for 5 seconds. Add the Shaoxing wine around the wok, then pour in the sauce. Scrape the wok and bring to a simmer.
+6. Stir the cornstarch slurry and slowly pour it into the sauce while stirring. Simmer for 10-15 seconds, until thick. Add the chicken, juices, and broccoli; toss to coat. Serve with steamed rice.
 
 
 ## Notes

@@ -41,12 +41,12 @@ carbs: 19
 
 ## Instructions
 
-1. In a medium bowl, mix the ground beef with the Shaoxing wine, soy sauce, and baking soda. Set aside to marinate for 20 minutes while you prep the other ingredients. (Or if making ahead, cover and refrigerate overnight.)
-2. Next, make the sauce. To a measuring cup, add the hot water and soy sauce. Then stir in the dark soy sauce and brown sugar. In a small bowl, mix up the cornstarch slurry.
-3. Once you’re ready to cook, add ⅓ cup cornstarch to a shallow dish. Break up the ground beef into pieces on top of the cornstarch, then use your fingers to break up the ground beef into nuggets and toss them in the cornstarch.
-4. Heat your wok or skillet over high heat. Add the oil and ground beef in a single layer and fry until golden. Once a golden crust has formed, use a wok spatula to flip the beef and let it brown once more undisturbed. Repeat until the beef is uniformly seared. Remove from the wok, leaving behind any oil.
-5. With the heat on medium-high, add the red chili peppers and cook for 1 minute.. Add the ginger, and fry for 30 seconds. Add the white parts of the scallions and the garlic, and cook for another 30 seconds to a minute.
-6. Stir up your sauce and add it to the pan. Bring to a simmer, then stir up your cornstarch slurry and add it to the sauce mixture. Once the sauce has thickened enough to coat the back of your spatula, add the beef along with the scallion greens. Toss until the scallions are just wilted. Serve with steamed rice!
+1. Mix the beef with the Shaoxing wine, soy sauce, and baking soda. Marinate for 20 minutes, or cover and refrigerate overnight.
+2. Mix the hot water, soy sauce, dark soy sauce, and brown sugar for the sauce. In a separate bowl, make the cornstarch slurry.
+3. Spread ⅓ cup cornstarch in a shallow dish. Break the beef into nuggets and toss to coat.
+4. Heat a wok or skillet over high heat. Add the oil and beef in a single layer. Fry until golden, turning to brown all sides. Remove the beef, leaving the oil in the pan.
+5. Cook the chilies over medium-high heat for 1 minute. Add the ginger and cook for 30 seconds. Add the scallion whites and garlic; cook for 30-60 seconds.
+6. Stir and add the sauce. Bring to a simmer, then add the slurry and cook until the sauce coats a spatula. Return the beef and scallion greens; toss until the scallions wilt. Serve with steamed rice.
 
 
 ## Notes

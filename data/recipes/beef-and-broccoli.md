@@ -45,13 +45,13 @@ carbs: 10
 
 ## Instructions
 
-1. In a bowl, add the sliced beef along with the baking soda and water (if you don’t want your beef tenderized too much, omit the baking soda). Massage the beef with your hands until all the liquid is absorbed. Mix in the remaining marinade ingredients: cornstarch, oil, and oyster sauce. Set aside to marinate for at least 30 minutes.
-2. Make the sauce mixture by mixing together the chicken stock, sugar, soy sauce, dark soy sauce, oyster sauce, sesame oil, and white pepper. Set aside.
-3. Bring a pot of water to a boil and blanch your broccoli for 30 to 60 seconds (depending on whether you like your broccoli crunchy or a little soft). Drain and set aside.
-4. Heat your wok over high heat until smoking. Add 2 tablespoons oil and sear the beef on both sides until browned (this should only take 2-3 minutes). Turn off the heat, remove the beef from the wok, and set aside.
-5. Set the wok over medium heat and add another tablespoon of oil along with the garlic and ginger (if using). Stir the garlic and ginger for 5 seconds and then pour the Shaoxing wine around the perimeter of the wok.
-6. Next, add in the sauce mixture you made earlier. Stir the sauce around the sides of the wok to deglaze it (all those nice bits from stir-frying the beef should be absorbed into the sauce). Bring the sauce to a simmer. Stir the cornstarch and water into a slurry to ensure it’s well combined, and drizzle the mixture into sauce while stirring constantly. Allow it to simmer and thicken for 20 seconds.
-7. Toss in the blanched broccoli and seared beef (along with any juices). Mix everything together over medium heat until the sauce coats the beef and broccoli. If the sauce seems thin, turn up the heat and reduce it further, or add a bit more cornstarch slurry. If the sauce is too thick, add a splash of chicken stock or water. Serve with plenty of steamed rice!
+1. Toss the beef with the baking soda and water, massaging until absorbed. Omit the baking soda for less tenderizing. Mix in the cornstarch, oil, and oyster sauce. Marinate for at least 30 minutes.
+2. Mix the chicken stock, sugar, soy sauces, oyster sauce, sesame oil, and white pepper for the sauce.
+3. Blanch the broccoli in boiling water for 30-60 seconds, depending on your preferred texture. Drain.
+4. Heat a wok over high heat until smoking. Add 2 tablespoons oil and sear the beef until browned, about 2-3 minutes. Remove the beef.
+5. Reduce the heat to medium. Add 1 tablespoon oil, garlic, and ginger, if using. Stir for 5 seconds, then pour the Shaoxing wine around the wok.
+6. Add the sauce and scrape up the browned bits. Bring to a simmer. Mix the cornstarch with water, then slowly add it while stirring. Simmer for 20 seconds to thicken.
+7. Add the broccoli, beef, and any juices. Toss until coated. If the sauce is too thin, reduce it or add slurry; if too thick, add stock or water. Serve with steamed rice.
 
 
 ## Notes

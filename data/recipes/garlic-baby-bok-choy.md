@@ -27,10 +27,10 @@ carbs: 4
 
 ## Instructions
 
-1. Trim the bottoms off of each bundle of bok choy, and split them in half or quarters. Just make sure all of the pieces are relatively uniform so they cook evenly. You can leave them whole if they’re very small and tender.
-2. Wash thoroughly with cold water two to three times. These days, we’re never too cautious about making sure all of the dirt and pesticides are rinsed away. The best method is to use a large basin or sink to rinse and swirl around the vegetables letting them soak for a few minutes before draining and washing again. Shake off the excess water after the final rinse and transfer to a colander to drain. It is important to drain the vegetables well since these veggies will release quite a bit of water during the cooking process.
-3. Heat the wok over high heat until smoking, and add 2 tablespoons oil. Swirl around the oil so the wok is coated. Add all of the garlic and immediately add the bok choy. Move quickly to stir and sauté the greens in the oil and garlic. Stir quickly so you don’t burn the garlic!
-4. Use a folding motion to turn the vegetables or use tongs if that is easier. Once the vegetables begin to wilt, about 30 seconds, add salt, pepper, and sugar. How long you cook them from here is all personal preference. Judy likes to cook them a bit longer for a softer texture while I like them a little bit more crisp. Plate and serve immediately.
+1. Trim the bok choy bases and halve or quarter the bundles into even pieces. Leave small, tender bundles whole.
+2. Wash the bok choy 2-3 times in cold water. Swish or soak it for a few minutes, then rinse and drain well.
+3. Heat a wok over high heat until smoking. Add 2 tablespoons oil and swirl to coat. Add the garlic and bok choy; stir quickly to keep the garlic from burning.
+4. Fold or turn the vegetables with tongs. When they begin to wilt, about 30 seconds, add salt, pepper, and sugar. Cook to your preferred texture and serve immediately.
 
 
 ## Notes

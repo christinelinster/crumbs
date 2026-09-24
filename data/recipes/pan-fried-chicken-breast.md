@@ -32,12 +32,12 @@ carbs: 5
 
 ## Instructions
 
-1. Cut the chicken breast into about 1/2 inch thick slices. For extra tenderness, slice against the grain.
-2. Use the back spine of the knife to hit both sides, working across each piece. On the top side, hit in one direction, then flip it over and hit the other side at a perpendicular angle, so you end up with a criss-cross pattern.
-3. Mix oyster sauce, sugar, garlic salt, cornstarch, and water in a bowl until the cornstarch has dissolved. Add the chicken and massage by hand.
-4. Spread out 1 tbsp of cornstarch on a plate. One by one, transfer each piece of chicken and coat both sides in a thin layer of cornstarch, then add it to a pile on the side of the plate. As the pile of finished pieces builds up, move it toward the end of the plate to use up the cornstarch underneath.
-5. Heat the wok on high, then add 2 tbsp oil. Once the oil is rippling, turn to low heat.
-6. Plate and add a dash of garlic salt. Enjoy quickly while the pan-fried essence is fragrant.
+1. Slice the chicken breast into 1/2-inch pieces, cutting against the grain.
+2. Tenderize both sides with the spine of a knife, tapping in perpendicular directions to make a crosshatch pattern.
+3. Mix the oyster sauce, sugar, garlic salt, cornstarch, and water until smooth. Add the chicken and massage to coat.
+4. Spread 1 tbsp cornstarch on a plate. Coat each chicken piece in a thin layer on both sides.
+5. Heat a wok over high heat and add 2 tbsp oil. When the oil shimmers, reduce the heat to low.
+6. Plate the chicken, season with a dash of garlic salt, and serve hot.
 
 
 ## Notes

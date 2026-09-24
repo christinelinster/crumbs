@@ -30,24 +30,24 @@ carbs: 21
 ## Instructions
 
 ### Make the pastry shells:
-1. Roll out the puff pastry into a 10x12 inch (25x30 cm) rectangle. From the 10-inch side, start rolling the pastry into a tight roll until you have a 10-inch long roll. Return the pastry to the freezer for 30 minutes to chill until firm.
-2. Cut the chilled pastry roll into 12 equal disks that weigh about 35 g each (cut the pastry in half twice, and then cut each of the remaining 4 pieces into 3 equal pieces to get a total of 12). You can also use a ruler for this purpose. Start with 6 pieces first, wrap the rest up, and put them back in the refrigerator or freezer to keep them chilled.
-3. On a very lightly floured surface, place each piece of dough so the swirls in the dough are facing up. Use a rolling pin to roll each piece into a flat disc about ¼ inch wider than the diameter of the tin and about 3/16 inches thick. Use flour sparingly when rolling out the discs. Using a pastry scraper or metal spatula to lift the discs will help keep them intact.
-4. Place each disk onto the bottom of each custard tart tin and press the dough onto the tin. When you spread the dough into the tart tin, form a lip that sits on top of the perimeter of the tin. This is crucial for preventing the custard from overflowing. Work quickly so your dough doesn’t heat up. Have some all-purpose flour on the table in case the dough sticks to your fingers, and as you press the dough against the bottom and the sides of the tin, try not to overwork it.
-5. Freeze the finished tart cups for at least 35 minutes or until frozen. You can make the pastry tins ahead of time and keep them frozen for up to 2 weeks.
+1. Roll the puff pastry into a 10x12-inch rectangle. Starting at a 10-inch side, roll it tightly into a 10-inch log. Freeze for 30 minutes, until firm.
+2. Cut the chilled log into 12 equal disks, about 35 g each. Work with 6 at a time and keep the rest chilled.
+3. Place each disk swirl-side up on a lightly floured surface. Roll it to about 3/16 inch thick and ¼ inch wider than the tin. Use little flour and lift the dough with a scraper or spatula.
+4. Press each disk into a tart tin, forming a lip over the rim to prevent spills. Work quickly and avoid overworking the dough. Dust your fingers with flour if it sticks.
+5. Freeze the shells for at least 35 minutes, until firm. They can be frozen for up to 2 weeks.
 ### Make the custard filling:
-6. Whisk ½ cup heavy cream, ½ cup sugar, 1¼ cup whole milk, 2 egg yolks, 4 teaspoons cornstarch, and 1¼ teaspoon vanilla extract in a small saucepan until the sugar is dissolved.
-7. Place over medium low heat, continuing to whisk until the mixture begins to coat the sides of the pan. Patience and low heat are key to a successful custard. The custard should get just hot enough so you see steam beginning to form. This is your signal that the custard is almost ready.
-8. When the custard is thick enough to coat a spoon, remove from the heat and continue to whisk, ensuring you scrape the sides of the pan. Whisk until it is no longer hot. Do not cook the custard into a pudding, or it will dry out too much during baking! It’s a fairly thin consistency.
-9. Set aside to cool completely, pressing plastic wrap onto the surface of the custard so a skin does not form on top.
+6. Whisk ½ cup heavy cream, ½ cup sugar, 1¼ cups whole milk, 2 egg yolks, 4 teaspoons cornstarch, and 1¼ teaspoons vanilla in a small saucepan until the sugar dissolves.
+7. Cook over medium-low heat, whisking, until steam rises and the custard begins to coat the pan.
+8. Remove from the heat and whisk, scraping the sides, until warm. Keep the custard thin; do not cook it to pudding consistency.
+9. Press plastic wrap onto the custard’s surface and cool completely.
 ### Assembly and baking:
-10. Preheat the oven to 475 degrees F (245 degrees C). Place the frozen pastry shells on a sheet pan (you can line it with parchment paper for easy cleanup).
-11. Spoon the cooled custard in each shell until the custard is about 3/16 inches below the top of the pastry shell. Work quickly since you don’t want to give the custard any chance of soaking into the pastry. It’s important to have the oven ready to go once you start pouring custard into the shells.
-12. Put the pan on the middle rack of your oven, and immediately turn the oven temperature down to 450 degrees F (230 degrees C). The total baking time for your Portuguese Custard Tarts should be 30 minutes, but check them after 20 minutes and rotate the pan if they are browning unevenly.
-13. After 25 minutes, if the pastry is turning golden brown and you see those signature scorched bubbles forming, you’re on track for another 5 minutes. If the pastry looks like it is browning too fast, you may want to turn the heat off to let residual heat finish the baking process. Oven temperatures are not always accurate and may be slightly hotter or cooler than the temperature you set it for, so play it by ear.
-14. When baking is complete, remove the custard tarts from the oven (leaving them in the tins), and place on a rack to cool.
-15. Your Portuguese Custard Tarts will smell incredible, but be sure to wait until they cool, as the custard will be extremely hot. Once they are cool enough to handle, remove the custard tarts from the tins and enjoy them warm!
-16. To reheat these tarts, preheat the oven or toaster oven to 350 degrees F, and heat them for 7-10 minutes until warmed through.
+10. Heat the oven to 475°F (245°C). Place the frozen shells on a sheet pan, lined with parchment if desired.
+11. Fill each shell to about 3/16 inch below the rim. Work quickly and bake as soon as they are filled.
+12. Bake on the middle rack, then immediately lower the oven to 450°F (230°C). Bake for 30 minutes, checking after 20 minutes and rotating the pan if they brown unevenly.
+13. At 25 minutes, check for golden pastry and scorched bubbles. If the pastry browns too quickly, turn off the oven and let the residual heat finish baking.
+14. Cool the tarts in their tins on a rack.
+15. Let the tarts cool before removing them from the tins or serving; the custard will be very hot.
+16. Reheat in a 350°F oven or toaster oven for 7-10 minutes.
 
 
 ## Notes

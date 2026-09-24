@@ -33,10 +33,10 @@ carbs: 11
 
 ## Instructions
 
-1. Heat a wok or large skillet over medium-high heat until. Add 1 tablespoon of oil, and spread it around to coat. Add the shrimp, and allow it to sear for 30 seconds on 1 side. Then stir-fry for 30 seconds, until the shrimp is 75% cooked (it should be mostly opaque). Turn off the heat, remove the shrimp to a bowl, and set aside.
-2. Over medium heat, add the remaining tablespoon of oil to the pan, along with the garlic and ginger. Fry for 30 seconds, until fragrant. Increase the heat to medium-high, add the curry paste, and fry for another minute. Stir in the brown sugar. Then add the onion and pepper, and fry for 2 minutes.
-3. Add the coconut milk. Bring to a simmer over medium-high heat. (From this point on, keep the curry at a simmer. Avoid boiling it too vigorously, or the coconut milk may split and have a grainy appearance.) Simmer for 2 minutes to thicken the sauce and cook the onions down.
-4. Stir in the shrimp, and simmer for 1 more minute. Taste and season with additional salt if needed (particularly if you used less curry paste). Garnish with cilantro if desired, and serve!
+1. Heat a wok or large skillet over medium-high heat. Add 1 tablespoon oil and coat the pan. Sear the shrimp for 30 seconds on one side, then stir-fry for 30 seconds, until mostly opaque. Remove and set aside.
+2. Over medium heat, fry the garlic and ginger in the remaining tablespoon oil for 30 seconds. Raise the heat to medium-high and fry the curry paste for 1 minute. Stir in the brown sugar, onion, and pepper; cook for 2 minutes.
+3. Add the coconut milk and bring to a simmer. Keep it at a gentle simmer to prevent splitting. Cook for 2 minutes to thicken the sauce and soften the onion.
+4. Return the shrimp and simmer for 1 minute. Taste and add salt if needed. Garnish with cilantro, if desired, and serve.
 
 
 ## Notes

@@ -34,10 +34,10 @@ carbs: 10
 
 ## Instructions
 
-1. Bring the chicken stock to a simmer in a medium soup pot. Stir in the sesame oil, salt, sugar, white pepper, and MSG (if using). Add in the turmeric or 5 drops of yellow food coloring, if using. This will give the soup that rich restaurant-style yellow color, but it is optional. Taste the soup, and adjust the seasoning if needed.
-2. Next add the cornstarch and water mixture. Make sure the cornstarch and water is mixed well, as the cornstarch settles very quickly. Stir the soup continuously as you drizzle in the slurry, or you'll get clumps of cooked starch in your soup. Use more or less starch if you like a thicker or thinner soup. You can also add the starch in a couple small batches, let the soup simmer for a couple of minutes, then check to see if the consistency is to your liking.
-3. Now we're ready for the most exciting part: the egg. This recipe calls for the egg to be lightly beaten, which results in both white and yellow egg swirls. The speed at which you stir the soup when adding the egg also determines whether you get large “egg flowers” or small egg flowers (i.e. swirly bits of egg). Use a ladle to stir the soup in a circular motion, and slowly drizzle in the egg until you have added it all.
-4. Ladle the soup into bowls, top with scallions, and serve!
+1. Bring the chicken stock to a simmer. Stir in the sesame oil, salt, sugar, white pepper, and MSG, if using. Add turmeric or 5 drops yellow food coloring, if desired. Taste and adjust the seasoning.
+2. Mix the cornstarch with water. Stir the soup continuously as you slowly pour in the slurry to prevent lumps. Add it in batches, simmering between additions, until the soup reaches your preferred thickness.
+3. Lightly beat the egg. Stir the soup in a circle and slowly drizzle in the egg. Stir faster for smaller egg ribbons or slower for larger ones.
+4. Serve topped with scallions.
 
 
 ## Notes

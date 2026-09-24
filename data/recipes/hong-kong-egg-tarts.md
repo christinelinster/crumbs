@@ -31,17 +31,17 @@ carbs: 19
 
 ## Instructions
 
-1. In a bowl, combine the flour and salt. The butter should be just soft enough that it gives when you press it, but not so soft that it collapses. Basically, you want it to be soft enough to break up with your fingers, but it shouldn’t immediately form a paste with the flour.
-2. Cut the butter into small cubes, and add it to the flour and salt. Working quickly, break it up roughly with your fingers until it resembles coarse crumbs with some pea-sized chunks of butter still in the mixture.
-3. Add 2 tablespoons of cold water, and bring the dough together with your hands. Add a little more water if necessary (start with 1/2 teaspoon), no more than 3 teaspoons. At this point, the dough will be scraggly and dry. You need to rest the dough in the refrigerator to allow the flour in the dough to continue to absorb moisture. Wrap the dough tightly in plastic or a reusable bag, and refrigerate for 20 minutes.
-4. On a lightly floured surface, roll the dough into a roughly 6x15 inch rectangle. Work quickly to avoid overworking it.
-5. Fold the top third of the dough down to the center, then the bottom third up and over that. Give the dough a quarter turn (left or right) and roll out again to a 6x15 inch rectangle. Fold the same way as before, cover, and chill for 1 hour.
-6. While the dough is resting, make the filling. Dissolve the sugar into 1 cup of hot water, and allow the mixture to cool to room temperature. Whisk evaporated milk, eggs, and vanilla together, and then thoroughly whisk in the sugar water. Strain through a fine meshed strainer into a large measuring cup or pitcher (something with a pour spout). You should have about 2 to 2 1/4 cups of custard.
-7. Preheat the oven to 375° F/190°C, and position a rack in the lower third of your oven.
-8. Roll out the dough 0.2 inch/5mm thick, and cut into 4-inch circles to fit either mini tart tins or a shallow non-stick standard muffin pan, leaving a lip going over the top of the cup (the tart shells will shrink as they bake, so you want ample clearance). Take the excess dough, re-roll it, and cut more circles until you have around 16 of them.
-9. Evenly fill the tart shells about three quarters full. If you have an ample lip of dough at the top, you can fill it just until you reach the part where the dough curves outward.
-10. Once filled, immediately (but very slowly and carefully) transfer the pan to the oven. Immediately reduce the heat to 350°F/180°C, and bake for 26-29 minutes, until filling is just set (if a toothpick can stand up in it, it’s done).
-11. Allow the tarts to cool for at least 10 minutes before enjoying.
+1. Mix the flour and salt. The butter should be soft but not collapsing.
+2. Cut the butter into small cubes and rub it into the flour until coarse crumbs form, with some pea-sized pieces remaining.
+3. Add 2 tablespoons cold water and bring the dough together. Add up to 3 teaspoons more, starting with ½ teaspoon. Wrap tightly and chill for 20 minutes.
+4. On a lightly floured surface, roll the dough into a 6x15-inch rectangle. Work quickly to keep it cool.
+5. Fold the top third down and the bottom third over it. Turn the dough a quarter turn, roll it out again, and fold the same way. Cover and chill for 1 hour.
+6. While the dough chills, dissolve the sugar in 1 cup hot water and cool to room temperature. Whisk the evaporated milk, eggs, and vanilla with the sugar water. Strain into a measuring cup or pitcher; you should have 2-2¼ cups custard.
+7. Heat the oven to 375°F (190°C) and set a rack in the lower third.
+8. Roll the dough to 5mm thick. Cut 4-inch circles to fit mini tart tins or a shallow nonstick muffin pan. Leave a lip above the rim because the shells shrink. Re-roll scraps to make about 16 circles.
+9. Fill each shell about three-quarters full, or up to where the dough curves outward.
+10. Slowly transfer the pan to the oven and immediately lower the heat to 350°F (180°C). Bake for 26-29 minutes, until the custard is just set; a toothpick should stand upright.
+11. Cool the tarts for at least 10 minutes before serving.
 
 
 ## Notes

@@ -35,8 +35,8 @@ carbs: 9
 
 ## Instructions
 
-1. In a wok over medium high heat, add the oil, shallots and garlic, and fry for 3 minutes. Add the chilies and cook for another minute. Crank up the heat to high, and add the ground pork, breaking it up into small bits and allowing it to crisp up.
-2. Add the sugar, fish sauce, soy sauce, dark soy sauce, and oyster sauce. Stir-fry for another minute and deglaze the pan with the broth or water. Because your pan is over high heat, the liquid should cook off very quickly. Add the basil, and stir-fry until wilted. Serve over rice.
+1. Heat the oil in a wok over medium-high heat. Fry the shallots and garlic for 3 minutes, then the chilies for 1 minute. Raise the heat to high, add the pork, and break it up. Cook until crisp.
+2. Add the sugar, fish sauce, soy sauces, and oyster sauce. Stir-fry for 1 minute, then deglaze with broth or water. Add the basil and cook until wilted. Serve over rice.
 
 
 ## Notes

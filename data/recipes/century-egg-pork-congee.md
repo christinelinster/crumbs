@@ -44,14 +44,14 @@ carbs: 40
 
 ## Instructions
 
-1. As always, wash your rice well. Wash the rice three times, changing out the starchy water for fresh water each round.
-2. Heat water in a large pot on high heat. While the water's heating up, add the dried scallops. Wait until the water is at a rolling boil, then add the soaked rice and the soaking liquid.
-3. (Daddy Lau's pro-tip #2: Freeze the pork just a bit before cutting, to firm it up, or only half-thaw fully frozen pork. Then it won't jiggle as much, and it'll be very easy to cut!)
-4. Grab a clean cutting board; you don't want raw pork residue on your garnishes. Chop cilantro and green onion.
-5. At this point, the congee base is finished cooking.
-6. Turn the heat as low as it'll go, then slowly drop small amounts of chopped pork onto different spots on the congee surface. You want them to end up as small clumps of meat, almost like little meatballs.
-7. Add the smaller pieces of century egg into the congee, and gently mix them in.
-8. After 30 seconds, giving the century eggs a chance to impart some flavor to the congee but before they disintegrate, turn off the stove and transfer the congee to a serving bowl. Top with the century egg wedges, and the chopped cilantro and green onions. Enjoy!
+1. Rinse the rice three times, changing the water each time.
+2. Bring water and dried scallops to a boil in a large pot. Add the soaked rice and its soaking liquid.
+3. Slightly freeze or partially thaw the pork to make it easier to slice.
+4. On a clean cutting board, chop the cilantro and green onion.
+5. Simmer until the congee base is cooked.
+6. Reduce the heat to low. Add small portions of chopped pork around the surface to form clumps.
+7. Add the smaller pieces of century egg and gently stir.
+8. After 30 seconds, turn off the heat before the egg breaks down. Transfer to a bowl and top with the century egg wedges, cilantro, and green onion.
 
 
 ## Notes

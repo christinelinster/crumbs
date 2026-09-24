@@ -37,11 +37,11 @@ carbs: 6
 
 ## Instructions
 
-1. In a medium bowl, marinate the chicken pieces with the Shaoxing wine, light soy sauce, neutral oil, oyster sauce, sugar, sesame oil, salt, and white pepper. Mix well, until the chicken is evenly coated in marinade. Cover the bowl with an overturned plate and marinate in the fridge for at least 2 hours, or overnight.
-2. 1 hour before cooking, take the chicken out of the fridge and let it come up to room temperature. Prepare the garlic, scallions, and black beans.
-3. Just before cooking, add the garlic, black beans, water (I used 2 tablespoons, but you can add up to 4 tablespoons if you like more sauce), and cornstarch. Mix well, and transfer the chicken to a heatproof dish large enough to keep the chicken in a single layer while still being able to fit into your steamer, with some depth to hold any sauce/juices. A glass or ceramic pie plate works well.
-4. Bring the water in your steamer to boil over high heat, making sure the water level is at least a couple inches, but won’t touch the bottom of the dish when boiling. Cover and steam the chicken over high heat for 10 minutes. (Steam for 9 minutes if using chicken breast.)
-5. Turn off the heat, but keep the lid tightly covered. Let the chicken sit in the steamer for an additional 2 minutes before removing the lid. Use a clean dry kitchen towel or plate lifter to carefully remove the dish from the steamer. Garnish with chopped scallion, and serve immediately with rice and your favorite vegetable side!
+1. Mix the chicken with the Shaoxing wine, light soy sauce, neutral oil, oyster sauce, sugar, sesame oil, salt, and white pepper. Cover and refrigerate for at least 2 hours or overnight.
+2. Remove the chicken from the fridge 1 hour before cooking. Prepare the garlic, scallions, and black beans.
+3. Just before cooking, mix the garlic, black beans, 2-4 tablespoons water, and cornstarch into the chicken. Arrange it in a heatproof dish that fits your steamer and holds the juices.
+4. Bring the steamer water to a boil, keeping it below the dish. Cover and steam over high heat for 10 minutes, or 9 minutes for chicken breast.
+5. Turn off the heat and rest the chicken, covered, for 2 minutes. Carefully remove the dish, garnish with scallions, and serve with rice and vegetables.
 
 
 ## Notes

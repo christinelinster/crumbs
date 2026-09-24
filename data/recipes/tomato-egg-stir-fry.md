@@ -32,12 +32,12 @@ carbs: 6
 
 ## Instructions
 
-1. Start by cutting tomatoes into small wedges and finely chop the scallion.
-2. Crack 4 eggs into a bowl and season with ¼ teaspoon salt, ¼ teaspoon white pepper, ½ teaspoon sesame oil, and 1 teaspoon Shaoxing wine. Beat eggs for a minute.
-3. Preheat the wok over medium heat until it just starts to smoke. Then add 2 tablespoons of oil and immediately add the eggs. Scramble the eggs and remove from the wok immediately. Set aside.
-4. Add 1 more tablespoon oil to the wok, turn up the heat to high, and add the tomatoes and scallions. Stir-fry for 1 minute, and then add 2 teaspoons sugar, ½ teaspoon salt, and ¼ cup water (if your stove gets very hot and liquid tends to cook off very quickly in your wok, add a little more water). Add the cooked eggs.
-5. Mix everything together, cover the wok, and cook for 1-2 minutes, until the tomatoes are completely softened.
-6. Uncover, and continue to stir-fry over high heat until the sauce thickens to your liking. Serve!
+1. Cut the tomatoes into small wedges and finely chop the scallion.
+2. Beat the eggs with ¼ teaspoon salt, ¼ teaspoon white pepper, ½ teaspoon sesame oil, and 1 teaspoon Shaoxing wine for 1 minute.
+3. Heat a wok over medium heat until it begins to smoke. Add 2 tablespoons oil and scramble the eggs. Remove them from the wok.
+4. Add 1 tablespoon oil and raise the heat to high. Stir-fry the tomatoes and scallions for 1 minute. Add 2 teaspoons sugar, ½ teaspoon salt, and ¼ cup water (add more if it evaporates quickly). Return the eggs to the wok.
+5. Cover and cook for 1-2 minutes, until the tomatoes soften.
+6. Uncover and stir-fry until the sauce thickens to your liking. Serve.
 
 
 ## Notes

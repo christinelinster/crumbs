@@ -46,14 +46,14 @@ carbs: 47
 
 ## Instructions
 
-1. Heat a Dutch oven or other medium to large pot over medium heat. Add the 1 tablespoon oil and the onion, and cook until the onions begin to turn translucent and the edges begin to brown, about 2-3 minutes.
-2. Add the garlic, tomato paste, and Worcestershire sauce (if using), and cook until fragrant, 1 minute. Then stir in the curry powder, salt, and sugar, and cook for 1 minute.
-3. Stir in the potatoes, carrots, and chicken stock. Bring to a simmer, cover, and cook until the potatoes and carrots are tender, about 20-25 minutes.
-4. Meanwhile, butterfly the chicken breast so they’re thin and even. If the chicken is uneven, you can pound it to an even thickness. Pat the chicken dry with a paper towel. Season both sides of the chicken pieces with salt and pepper, and dust with a light, even coating of flour. In one shallow bowl, beat the egg. Put the panko breadcrumbs into another shallow bowl.
-5. Add a thin, even layer of oil to a cast iron pan or nonstick skillet over medium heat. The oil is ready when you throw a panko breadcrumb into the oil and it sizzles. Dip the chicken into the egg to coat. Transfer to the panko and press it evenly into the chicken to get a good coating.
-6. You’ll need to cook the chicken in a couple batches. Carefully lay the chicken in the hot oil and cook for 6 minutes on one side, until golden brown. Flip and cook the other side for another 5-6 minutes. Transfer to a plate and repeat with the remaining chicken, adding oil to the pan as needed.
-7. Stir the cornstarch with the water to make a slurry, and add it to the curry sauce. Stir until the sauce is thickened, then stir in the butter. Taste for seasoning and add additional salt to taste if needed.
-8. Slice the chicken, and place over the steamed rice. Ladle the curry sauce on the side. Enjoy!
+1. Heat 1 tablespoon oil in a Dutch oven or large pot over medium heat. Add the onion and cook for 2-3 minutes, until translucent and beginning to brown.
+2. Add the garlic, tomato paste, and Worcestershire sauce, if using. Cook for 1 minute until fragrant. Stir in the curry powder, salt, and sugar; cook for 1 minute.
+3. Add the potatoes, carrots, and chicken stock. Cover, bring to a simmer, and cook for 20-25 minutes, until tender.
+4. Butterfly the chicken breasts and pound to an even thickness if needed. Pat dry, season with salt and pepper, and dust with flour. Beat the egg in one shallow bowl and place the panko in another.
+5. Heat a thin layer of oil in a cast-iron or nonstick skillet over medium heat. When a panko crumb sizzles, dip the chicken in egg, then press it into the panko to coat.
+6. Fry the chicken in batches for 6 minutes on one side, until golden. Flip and cook for 5-6 minutes. Add oil as needed; transfer the chicken to a plate.
+7. Mix the cornstarch with the water and stir it into the curry until thickened. Stir in the butter and add salt to taste.
+8. Slice the chicken and serve over steamed rice with curry sauce.
 
 
 ## Notes

@@ -42,10 +42,10 @@ carbs: 12
 
 ## Instructions
 
-1. In a medium bowl, combine the pork strips with the marinade ingredients (the water, cornstarch, oil, oyster sauce, and Shaoxing wine). In a small bowl, combine the chicken stock, light soy sauce, dark soy sauce, sesame oil, sugar, and white pepper.
-2. Place a wok over medium-high heat, and add 1 tablespoon of oil. Add the string beans. Sear the string beans on all sides until lightly scorched, about 5-6 minutes. Remove the beans from the wok.
-3. Reheat your wok over high heat until it just starts to smoke. Spread the remaining tablespoon of oil around the perimeter. Spread the pork on the wok in one layer, and sear for 1 minute on each side.
-4. Add the ginger and garlic, and stir-fry for 30 seconds. Then add the stock mixture you prepared earlier, and increase the heat to high. Add the cornstarch slurry, being sure to pour it directly into the standing liquid, and stir-fry for another 15 seconds. Next, add the green beans. Stir-fry over high heat for another 30 seconds. Serve!
+1. Mix the pork with the water, cornstarch, oil, oyster sauce, and Shaoxing wine. In a separate bowl, mix the stock, soy sauces, sesame oil, sugar, and white pepper.
+2. Heat a wok over medium-high and add 1 tablespoon oil. Sear the green beans on all sides until lightly charred, about 5-6 minutes. Remove.
+3. Heat the wok over high until smoking. Add the remaining tablespoon oil and spread the pork in one layer. Sear for 1 minute per side.
+4. Add the ginger and garlic; stir-fry for 30 seconds. Add the stock mixture and raise the heat to high. Pour the slurry into the liquid and stir-fry for 15 seconds. Add the beans and cook for 30 seconds. Serve.
 
 
 ## Notes

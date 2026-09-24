@@ -47,17 +47,17 @@ carbs: 12
 ## Instructions
 
 ### Roast the peanuts:
-1. Heat 1 teaspoon of oil in a wok over medium heat. Add the peanuts. Stir constantly (or they’ll burn) for 4-5 minutes. Turn off the heat, and stir for another minute using the residual heat of the wok. Set aside to cool.
-2. They will turn crunchy once completely cooled. You can also skip this step and use already roasted, shelled unsalted peanuts.
+1. Heat 1 teaspoon oil in a wok over medium heat. Add the peanuts and stir constantly for 4-5 minutes. Turn off the heat and stir for 1 minute more. Cool completely.
+2. Or skip roasting and use roasted, shelled, unsalted peanuts.
 ### Prepare the shrimp:
-3. Butterfly each shrimp, making a small cut along its back without cutting it all the way through. Add the shrimp to a bowl, along with the oil, Shaoxing wine, salt, and white pepper powder. Set aside for 15 minutes.
-4. Mix in the cornstarch right before cooking.
+3. Butterfly the shrimp with a shallow cut along the back. Toss with the oil, Shaoxing wine, salt, and white pepper. Marinate for 15 minutes.
+4. Stir in the cornstarch just before cooking.
 ### Prepare the sauce:
-5. In a medium bowl, make the sauce by combining the water, rice wine vinegar, light soy sauce, sugar, cornstarch, Sichuan peppercorn powder, and dark soy sauce.
+5. Mix the water, rice wine vinegar, light and dark soy sauces, sugar, cornstarch, and Sichuan peppercorn powder for the sauce.
 ### Assemble the dish:
-6. Heat the wok over high heat, until it just starts to smoke. Add 2 tablespoons of oil, followed by the shrimp (be sure to stir the ½ teaspoon cornstarch into the shrimp before searing). Quickly sear the shrimp on both sides, and transfer to a bowl once they turn light pink. Set aside.
-7. Reduce the heat to low. Add the remaining tablespoon of oil, garlic, ginger, chilies, and scallions. Cook for 1-2 minutes, until fragrant, maintaining low heat.
-8. Increase the heat to high, and add the shrimp back to the wok. Stir-fry for 30 seconds. Stir up your prepared sauce (the cornstarch settles to the bottom and should be re-stirred). Add the sauce to the wok, and stir-fry for another minute. The sauce should thicken very quickly. Add the peanuts, and turn off the heat. Mix everything well, and serve!
+6. Heat the wok over high heat until it just smokes. Stir the ½ teaspoon cornstarch into the shrimp. Add 2 tablespoons oil and sear the shrimp on both sides until light pink. Transfer to a bowl.
+7. Reduce the heat to low. Add the remaining tablespoon oil, garlic, ginger, chilies, and scallions. Cook for 1-2 minutes until fragrant.
+8. Raise the heat to high and return the shrimp. Stir-fry for 30 seconds. Re-stir the sauce, add it to the wok, and cook for 1 minute until thick. Add the peanuts, toss, and serve.
 
 
 ## Notes

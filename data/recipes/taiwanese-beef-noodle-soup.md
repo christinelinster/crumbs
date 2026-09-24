@@ -54,13 +54,13 @@ carbs: 57
 
 ## Instructions
 
-1. Boil enough water in a pot to boil all of your beef. Once the water is boiling, add the beef. Let it come back up to a boil, and boil for 1 minute. Strain in a colander and rinse thoroughly with fresh water to remove any impurities.
-2. Next, in your instant pot, turn on the saute setting. Add the oil, crushed ginger, garlic, scallions, and onions in that order. Stir to lightly caramelize. Let the onion turn translucent. Add the tomato and dried chilies.
-3. Next, add the meat to the pot. Then add the tomato paste, spicy bean paste, sugar, soy sauce, and Shaoxing wine, and mix thoroughly.
-4. Pour 8 cups of water into the instant pot. Add the spice packet. The instant pot should be filled to the 10-cup line; it shouldn’t be more than ⅔ of the way full per safety instructions. Our instant pot is the largest size (8 quarts); if yours is smaller, you can halve the recipe accordingly.
-5. Close the lid of the instant pot, and make sure you have your vent set so it is not venting. Cook for 100 minutes on the Meat/Stew setting. If you don’t have an instant pot, you can use a regular pot on the stove, but instead, cook the soup on a low simmer for 3-4 hours.
-6. When the instant pot timer is up, carefully release the pressure valve (wear an oven mitt, so you don’t scald yourself!). Boil some noodles per package instructions, and in the last minute or two of the noodles cooking, throw your bok choy in and blanch until just tender.
-7. Serve each bowl of Taiwanese beef noodle soup with a serving of noodles, a few stalks of bok choy, and generous sprinklings of finely minced cilantro, scallions, and Chinese pickled mustard greens. Pro tip, buy the pre-seasoned spicy mustard greens and you can use them straight out of the package. If you are using the non-spicy version (from a can, for example), chop and saute with a little oil, a few chopped dried red chilies, and a pinch of sugar.
+1. Bring a pot of water to a boil. Add the beef, return to a boil, and cook for 1 minute. Drain and rinse well.
+2. Set the Instant Pot to sauté. Add the oil, ginger, garlic, scallions, and onions in that order. Stir until lightly caramelized and the onion is translucent. Add the tomato and dried chilies.
+3. Add the beef, tomato paste, spicy bean paste, sugar, soy sauce, and Shaoxing wine. Mix well.
+4. Add 8 cups water and the spice packet. Keep the pot at or below the ⅔-full safety line. This recipe uses an 8-quart pot; halve it for a smaller cooker.
+5. Seal the lid with the valve closed. Cook on Meat/Stew for 100 minutes. On the stove, simmer gently for 3-4 hours.
+6. Wearing an oven mitt, carefully release the pressure. Cook the noodles according to the package, adding the bok choy for the last 1-2 minutes.
+7. Serve the soup with noodles, bok choy, cilantro, scallions, and pickled mustard greens. Use seasoned spicy greens as-is. For unseasoned canned greens, chop and sauté with a little oil, dried chilies, and a pinch of sugar.
 
 
 ## Notes

@@ -42,17 +42,17 @@ carbs: 48
 
 ## Instructions
 
-1. To the flank steak, add the Thai black soy sauce (or regular soy sauce/oyster sauce), vegetable oil, cornstarch, baking soda, and water. Mix until the beef is completely coated. Set aside.
-2. For the rest of the dish, combine the water, oyster sauce, sugar, Thai thin soy sauce, Thai black soy sauce, fish sauce, and white pepper in a small bowl. Stir to mix well.
-3. Make sure your fresh rice noodles are at room temperature. If the noodles are really cold and stiff from refrigeration, rinse them quickly under hot tap water when you are ready to stir-fry the dish. This extra step will help you avoid a big homogenous lump of noodles during stir-frying. Be sure to shake off any excess water after rinsing and use them immediately.
-4. The fresh wide rice noodles really set this dish apart from other noodle dishes, so try your best to find them. Or you can use our recipe for homemade rice noodles to make them at home. If either of these options don’t work, then use dried rice noodles but remember to halve the dried amount - 8 ounces of dried noodles to rehydrate to 16 ounces. Also, if using a dried rice noodle, follow the directions on the package and make sure you undercook the noodles slightly (al dente), since you will be cooking them again in the wok. After you drain the noodles thoroughly, toss the noodles with a tablespoon of oil. This will prevent them from sticking to the wok.
-5. Heat your wok over high heat until it just starts to smoke, and spread 1 tablespoon of oil around the perimeter of the wok evenly to coat. Sear the beef until it is 80% cooked through, and transfer back to the marinade bowl.
-6. Add another tablespoon of oil to the wok and stir in the garlic. Immediately add the Chinese broccoli and stir-fry for 20 seconds (stir constantly to prevent the garlic from burning).
-7. Next, spread the noodles around the wok. Continue to work quickly--your wok should be at the highest heat setting. Spread the sauce mixture over the top of the noodles, and gently mix everything with your wok spatula using a scooping motion for about 20 seconds. Add the beef back to wok.
-8. Push the mixture to one side to let the empty side of the wok heat for 10 seconds. Add another tablespoon of oil to the wok, and add the beaten eggs. Wait 5 seconds for them to begin to cook. Scramble the eggs for another few seconds, breaking them up into smaller pieces.
-9. If your wok is not sizzling at this point, it probably means that your burner is not hot enough. Be patient, and the heat should “catch up.” Stir-fry the mixture just enough so the noodles heat up evenly, but don’t break into small pieces. Make sure you use your wok spatula to scrape the bottom of the wok so the noodles don’t stick.
-10. As the wok heats up, you will notice that the food will stick to it less readily! But if you need to, you can add a little oil to make it easier to stir-fry.
-11. Continue cooking, stirring less frequently (so the noodles get slightly caramelized, creating that restaurant-style flavor) for another 1 to 2 minutes, or until the noodles are heated through. Serve hot with Homemade Chili Oil or Chiu Chow Sauce on the side!
+1. Toss the flank steak with the Thai black soy sauce (or regular soy and oyster sauces), oil, cornstarch, baking soda, and water. Set aside.
+2. Mix the water, oyster sauce, sugar, thin and black soy sauces, fish sauce, and white pepper for the sauce.
+3. Bring fresh rice noodles to room temperature. If cold and stiff, rinse briefly under hot tap water, shake dry, and use immediately.
+4. Use fresh or homemade wide noodles if possible. Otherwise, use 8 ounces dried noodles to make 16 ounces. Cook them slightly under package directions, drain well, and toss with 1 tablespoon oil.
+5. Heat a wok over high heat until lightly smoking. Add 1 tablespoon oil and sear the beef until about 80% cooked. Return it to the marinade bowl.
+6. Add another tablespoon oil and the garlic. Add the Chinese broccoli and stir-fry for 20 seconds, stirring constantly.
+7. Add the noodles and sauce. Toss quickly with a scooping motion for about 20 seconds, then return the beef to the wok.
+8. Push the mixture aside. Add another tablespoon oil to the empty side and heat for 10 seconds. Add the beaten eggs; wait 5 seconds, then scramble them into small pieces.
+9. Keep the wok sizzling. Toss gently until the noodles heat evenly without breaking. Scrape the bottom to prevent sticking.
+10. Add a little oil if the noodles stick.
+11. Cook for 1-2 minutes, stirring less often to lightly caramelize the noodles. Serve hot with chili oil or Chiu Chow sauce.
 
 
 ## Notes

@@ -42,12 +42,12 @@ carbs: 10
 
 ## Instructions
 
-1. In a medium bowl, add the sliced beef, oyster sauce, water, cornstarch, oil, and baking soda. Mix to evenly coat the beef, and set aside for 20 minutes (or overnight, if making ahead).
-2. Then prepare the sauce mixture. In a measuring cup, mix the warm water (or stock), light soy sauce, oyster sauce, dark soy sauce, sesame oil, and sugar.
-3. To process your snow peas, pick off the tough stem end, and remove the fibrous string along the length of the pea. Do the same from the other end, so that the strings on both sides of the snow pea are removed. Wash the snow peas and drain.
-4. Heat your wok over high heat until it's lightly smoking. Spread 2 tablespoons of oil around the perimeter to coat. Add the beef, and use your metal wok spatula to spread it in one even layer. Sear for 1 minute. Turn the beef to sear the other side for another 30 seconds. Stir-fry. At this point, the beef should be about 90% done. Turn off the heat and remove the beef from the wok.
-5. Next, with the heat back on high, add the remaining tablespoon of oil and the garlic. Cook for 10 seconds, and add the Shaoxing wine, followed by the snow peas. Stir-fry on the highest heat for 30 seconds. Stir in the prepared sauce mixture and add the beef back to the wok. Gather everything in the center of the wok.
-6. When everything comes back up to a simmer and the sides of the wok begin to super-heat, stir-fry everything in a circular motion so the beef and snow peas hit the sides of the wok. Pour the cornstarch slurry in the center of the wok while stirring. Stir everything together for another 20 seconds to coat everything in the sauce. Serve immediately.
+1. Toss the beef with the oyster sauce, water, cornstarch, oil, and baking soda. Marinate for 20 minutes or overnight.
+2. Mix the warm water or stock with the light and dark soy sauces, oyster sauce, sesame oil, and sugar.
+3. Trim both ends and remove the strings from the snow peas. Wash and drain.
+4. Heat a wok over high heat until lightly smoking. Add 2 tablespoons oil and sear the beef in one layer for 1 minute. Turn and sear for 30 seconds, then stir-fry until about 90% cooked. Remove.
+5. Add the remaining tablespoon of oil and garlic. Cook for 10 seconds, then add the Shaoxing wine and snow peas. Stir-fry for 30 seconds. Add the sauce and beef.
+6. Bring the mixture to a simmer. Stir in the cornstarch slurry and cook for 20 seconds, until the sauce coats the beef and peas. Serve immediately.
 
 
 ## Notes

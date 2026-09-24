@@ -30,14 +30,11 @@ carbs: 1
 
 ## Instructions
 
-1. First, we chop our scallions to be added as garnish at the end. This gives our dish more color and flavor.
-2. Put the steamer rack in the wok, and place your bowl on top of the rack.
-3. Crack the eggs into a bowl, and add salt, chicken bouillon, and oil. Start mixing the eggs with a fork or chopstick.
-4. This is a really important step that determines the steamed eggs’ final fate of silkiness.
-5. Make sure that the water is boiling in the wok and that your stove is still on high heat.
-6. After you cover the wok, leave the stove on high heat until the water starts boiling again. This should take anywhere from 1 to 4 minutes.
-7. Once the dish is done steaming, remove the lid. Add scallion and white pepper to taste.
-8. We're done! It's time to remove the steamed eggs from the wok.
+1. Chop the scallions for garnish.
+2. Beat the eggs with the salt, chicken bouillon, and oil. Whisk in 2 cups warm water.
+3. Bring water in the wok to a boil over high heat. Set the egg bowl on a steamer rack inside the wok.
+4. Cover and keep the heat high until the water returns to a boil, about 1-4 minutes. Steam until the eggs are set.
+5. Remove the lid. Garnish with scallion and white pepper to taste, then carefully remove the bowl from the wok.
 
 
 ## Notes

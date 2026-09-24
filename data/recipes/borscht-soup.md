@@ -47,10 +47,10 @@ carbs: 53
 
 ## Instructions
 
-1. Because all these vegetables will be boiling in soup for two hours, it's not necessary to obsess over the exact size and shape of each vegetable. However, it's ideal to cut everything to approximately the same size. Your soup will look amazing and the ingredients will have the perfect textures.
-2. Add the spare ribs to a wok or pot full of clean, cold water. For 1 lb of spare ribs, we needed 4-5 cups of water to submerge them. Turn the heat to high and bring it to a boil.
-3. (Time-management tip: on the side, you may want to start boiling water for the next step.)
-4. To the soup pot full of stir-fried ingredients, add chicken broth. Then turn the heat on to high. Add water (use boiling water to save time), then give everything a good stir to ensure that everything is well-mixed.
+1. Cut the vegetables into similar-sized pieces for even cooking.
+2. Add the spare ribs to a pot of cold water, using 4-5 cups per pound to cover them. Bring to a boil over high heat.
+3. Meanwhile, bring water for the next step to a boil.
+4. Add the chicken broth and boiling water to the pot of stir-fried ingredients. Bring to a boil and stir to combine.
 
 
 ## Notes

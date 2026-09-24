@@ -32,8 +32,8 @@ carbs: 26
 
 ## Instructions
 
-1. In a medium bowl, mash the banana with a fork. Crack the egg into the bowl, and beat it together with the banana. Stir in the oats, vanilla, and cinnamon. At this point, you can stir in any add-ins, like flaxseed meal, nut butter, and fruit.
-2. Thoroughly heat a pan over medium heat, and add the oil. Dollop the batter into the hot pan (I like to make small pancakes), and cook for a few minutes on each side, until golden brown. Enjoy!
+1. Mash the banana in a bowl. Beat in the egg, then stir in the oats, vanilla, and cinnamon. Add optional flaxseed, nut butter, or fruit if desired.
+2. Heat the oil in a pan over medium heat. Spoon in the batter and cook for a few minutes per side, until golden brown.
 
 
 ## Notes

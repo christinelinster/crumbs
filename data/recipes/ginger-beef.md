@@ -43,13 +43,13 @@ carbs: 17
 
 ## Instructions
 
-1. Add the sliced flank steak to a medium bowl, and add the marinade ingredients (the cornstarch, neutral oil, oyster sauce, water, and baking soda). Mix well, and marinate for at least 30 minutes (or up to overnight).
-2. In a liquid measuring cup, mix all the sauce ingredients together—the water, light brown sugar, light soy sauce, oyster sauce, dark soy sauce, sesame oil, and minced ginger. Set aside.
-3. Add the cornstarch to a shallow dish, and dredge the marinated beef slices in the cornstarch until thoroughly coated, placing the dredged beef on a clean plate or sheet pan.
-4. Heat the neutral oil in a wok over high heat. Just before the oil starts to smoke, spread half the flank steak pieces evenly in the wok, and sear for 1-2 minutes on each side, until you have a crispy coating. 1/4 cup oil works for a 14-inch wok, but if you have a larger wok, you may need a tablespoon or two more to properly fry the beef. Remove the beef from the wok, leaving any oil behind, and repeat with the remaining beef. Turn off the heat and transfer the beef to a plate.
-5. Drain the oil from the wok (save it for other cooking), leaving 2 tablespoons behind. Turn the heat to medium-high. Add the julienned ginger, and fry until crispy. At this point, you can remove a few pieces of fried ginger and reserve it for a garnish if you like.
-6. Add the premixed sauce to the wok, and bring to a simmer. Simmer for 2 minutes. Meanwhile, combine the remaining 1 tablespoon of cornstarch with 3 tablespoons of water. Drizzle this cornstarch slurry into the sauce, and cook until it has thickened enough to coat the back of a spoon.
-7. Add the beef and the scallions, and toss everything together for another 30 seconds. The sauce should all be clinging to the beef. Serve!
+1. Toss the flank steak with the cornstarch, neutral oil, oyster sauce, water, and baking soda. Marinate for at least 30 minutes or overnight.
+2. Mix the water, brown sugar, light and dark soy sauces, oyster sauce, sesame oil, and minced ginger for the sauce.
+3. Dredge the beef in cornstarch until coated. Set it on a clean plate or sheet pan.
+4. Heat the neutral oil in a wok over high heat. Sear half the beef for 1-2 minutes per side, until crisp. Use about ¼ cup oil for a 14-inch wok, or 1-2 tablespoons more for a larger wok. Remove the beef, leaving the oil, and repeat.
+5. Drain the oil, leaving 2 tablespoons in the wok. Over medium-high heat, fry the julienned ginger until crisp. Reserve some for garnish if desired.
+6. Add the sauce and simmer for 2 minutes. Mix the remaining 1 tablespoon cornstarch with 3 tablespoons water. Stir it into the sauce and cook until it coats a spoon.
+7. Return the beef and scallions. Toss for 30 seconds, until coated, and serve.
 
 
 ## Notes

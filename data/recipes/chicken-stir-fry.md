@@ -53,14 +53,14 @@ carbs: 17
 
 ## Instructions
 
-1. Soak the broccoli in clean water for 10 to 15 minutes. Dunk the heads into the water a few times, then rinse and drain.
-2. Cut the chicken breast in half lengthwise. Rotate the chicken 90 degrees, then cut in half again. Cut into thin slices. Set aside in a bowl.
-3. Smash and peel the garlic, then trim off the hard ends. Smash the cloves again and mince.
-4. In a small bowl, combine the oyster sauce, light soy sauce, salt, sugar, cooking wine, and white pepper. Mix to thoroughly combine.
-5. Combine the cornstarch and water.
-6. Bring the water to boil in a large pot. Once it comes to a rolling boil, add the salt and oil to the water.
-7. Heat a wok on high. Once it starts to smoke, add the oil. Turn the heat to low.
-8. Add the garlic, ginger, green onion whites, and carrots. Stir fry for 30 to 40 seconds until fragrant. Turn the heat back to high.
+1. Soak the broccoli for 10-15 minutes. Rinse and drain.
+2. Cut the chicken breast in half lengthwise, rotate it 90 degrees, and cut it in half again. Slice thinly.
+3. Smash and peel the garlic, trim the hard ends, then mince.
+4. Mix the oyster sauce, light soy sauce, salt, sugar, cooking wine, and white pepper.
+5. Mix the cornstarch with the water.
+6. Bring a large pot of water to a rolling boil. Add the salt and oil.
+7. Heat a wok over high heat until smoking. Add the oil, then reduce the heat to low.
+8. Add the garlic, ginger, scallion whites, and carrots. Stir-fry for 30-40 seconds until fragrant, then raise the heat to high.
 
 
 ## Notes

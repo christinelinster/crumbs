@@ -27,11 +27,11 @@ carbs: 51
 
 ## Instructions
 
-1. In a pot, bring 4 cups of water to a boil. Add the mini pearl tapioca (don’t add it before the water is at a full boil!). Stir and bring it to boil again. Simmer for 20 minutes, or until the tapioca is completely transparent, which means they’re fully cooked. If after 20 minutes, the tapioca balls still have a white center, turn off the heat, cover, and let the tapioca sit in the hot water for another 10 minutes.
-2. When the tapioca is cooked through, drain, rinse in cold water to cool, then soak in a bowl of cold water and set aside.
-3. Meanwhile, peel the mango, trimming to remove the center pit. Set aside a large handful of nice chunks for topping. The rest will be blended.
-4. In a blender, add the coconut milk, condensed milk, vanilla extract, and mango. Blend until smooth, and transfer to a large bowl. At this stage, if you like your dessert cold, chill the mango mixture for at least an hour before adding the tapioca.
-5. When you’re ready to serve, drain the cooked tapioca, and add to the mango mixture. Scoop into individual bowls and top with mango chunks.
+1. Bring 4 cups water to a full boil. Add the tapioca and stir. Once it boils again, simmer for 20 minutes, until transparent. If the centers are still white, cover off the heat and let stand for 10 minutes.
+2. Drain and rinse the tapioca under cold water. Soak it in a bowl of cold water and set aside.
+3. Peel and pit the mango. Reserve a handful of chunks for topping; blend the rest.
+4. Blend the coconut milk, condensed milk, vanilla, and mango until smooth. Transfer to a bowl. For a cold dessert, chill for at least 1 hour.
+5. Drain the tapioca and stir it into the mango mixture. Serve in bowls topped with mango chunks.
 
 
 ## Notes

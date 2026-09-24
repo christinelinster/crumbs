@@ -34,10 +34,10 @@ carbs: 57
 
 ## Instructions
 
-1. Heat the neutral oil in a large skillet over medium high heat, and cook the sliced onions for about 10 minutes, stirring often.
-2. Add the beef and sugar, and cook until the beef is slightly browned. Add the mirin, soy sauce, and stock. Bring to a simmer, and cook for about 10-15 minutes to reduce the stock into a thin sauce. Taste for seasoning, and add a little more soy sauce if needed.
-3. Meanwhile, heat another couple tablespoons of oil in a cast iron or non-stick skillet. Cook the eggs sunny-side up. You can cook them in batches if needed. The yolks should still be runny!
-4. When the beef is done simmering, divide the rice among serving bowls (the original recipe is for 4, so 4 bowls), and top with the beef and an egg for each bowl. Garnish with chopped scallion and toasted sesame seeds, if using.
+1. Heat the neutral oil in a large skillet over medium-high heat. Cook the onions for about 10 minutes, stirring often.
+2. Add the beef and sugar. Cook until lightly browned, then add the mirin, soy sauce, and stock. Simmer for 10-15 minutes to reduce to a thin sauce. Taste and add soy sauce if needed.
+3. Meanwhile, heat a couple tablespoons of oil in a cast-iron or nonstick skillet. Fry the eggs sunny-side up in batches, keeping the yolks runny.
+4. Divide the rice among 4 bowls. Top with the beef and one egg per bowl. Garnish with scallion and toasted sesame seeds, if using.
 
 
 ## Notes
