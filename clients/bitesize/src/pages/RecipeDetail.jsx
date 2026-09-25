@@ -7,8 +7,9 @@ import {
   formatDuration,
   formatLabel,
   formatServings,
-  groupHeadingsAt,
   normalizeArray,
+  sectionHeading,
+  sectionItems,
 } from '../utils/recipe'
 import FavButton from '../components/FavButton'
 import RecipeIcon from '../components/RecipeIcon'
@@ -18,24 +19,28 @@ const EMPTY_LIST = []
 export default function RecipeDetail({ isFavourite, toggleFavourite, onDiscussRecipe }) {
   const { slug } = useParams()
   const { recipe, loading, error, retry } = useRecipe(slug)
-  const ingredients = recipe?.ingredients ?? EMPTY_LIST
-  const instructions = recipe?.instructions ?? EMPTY_LIST
+  const ingredientSections = recipe?.ingredient_sections ?? EMPTY_LIST
+  const instructionSections = recipe?.instruction_sections ?? EMPTY_LIST
+  const ingredients = useMemo(() => sectionItems(ingredientSections), [ingredientSections])
+  const instructions = useMemo(() => sectionItems(instructionSections), [instructionSections])
   const categories = normalizeArray(recipe?.category)
   const tags = normalizeArray(recipe?.tags)
-
-  const ingredientGroupHeadings = useMemo(
-    () => groupHeadingsAt(recipe?.ingredient_groups),
-    [recipe],
-  )
-  const instructionGroupHeadings = useMemo(
-    () => groupHeadingsAt(recipe?.instruction_groups),
-    [recipe],
-  )
 
   const stepMatches = useMemo(
     () => instructions.map((step) => matchedIngredientIndexes(ingredients, step)),
     [ingredients, instructions],
   )
+  const numberedInstructionSections = useMemo(() => {
+    let position = 0
+    return instructionSections.map((section) => ({
+      section,
+      items: section.items.map((step) => ({
+        step,
+        index: position,
+        number: ++position,
+      })),
+    }))
+  }, [instructionSections])
 
   if (loading && !recipe) {
     return (
@@ -172,13 +177,14 @@ export default function RecipeDetail({ isFavourite, toggleFavourite, onDiscussRe
             <h2 className="panel-title">Ingredients</h2>
             <p className="panel-hint">Ingredients are called out in the instructions.</p>
             <ul className="ingredients">
-              {ingredients.map((item, i) => {
-                const position = i + 1
-                const groupName = ingredientGroupHeadings.get(position)
+              {ingredientSections.map((section, sectionIndex) => {
+                const heading = sectionHeading(section)
                 return (
-                  <Fragment key={`ingredient-${position}-${item}`}>
-                    {groupName && <li className="group-heading">{groupName}</li>}
-                    <li>{item}</li>
+                  <Fragment key={`ingredient-section-${sectionIndex}`}>
+                    {heading && <li className="group-heading">{heading}</li>}
+                    {section.items.map((item, itemIndex) => (
+                      <li key={`ingredient-${sectionIndex}-${itemIndex}`}>{item}</li>
+                    ))}
                   </Fragment>
                 )
               })}
@@ -188,24 +194,25 @@ export default function RecipeDetail({ isFavourite, toggleFavourite, onDiscussRe
           <section className="panel">
             <h2 className="panel-title">Instructions</h2>
             <ol className="steps">
-              {instructions.map((step, i) => {
-                const position = i + 1
-                const groupName = instructionGroupHeadings.get(position)
+              {numberedInstructionSections.map(({ section, items }, sectionIndex) => {
+                const heading = sectionHeading(section)
                 return (
-                  <Fragment key={`instruction-${position}-${step}`}>
-                    {groupName && <li className="group-heading">{groupName}</li>}
-                    <li>
-                      <span className="step-num">{position}</span>
-                      <p>
-                        {stepSegments(step, stepMatches[i], ingredients).map((seg, j) =>
-                          seg.ingredient ? (
-                            <mark key={j} className="step-ingredient">{seg.text}</mark>
-                          ) : (
-                            <span key={j}>{seg.text}</span>
-                          ),
-                        )}
-                      </p>
-                    </li>
+                  <Fragment key={`instruction-section-${sectionIndex}`}>
+                    {heading && <li className="group-heading">{heading}</li>}
+                    {items.map(({ step, index, number }, itemIndex) => (
+                      <li key={`instruction-${sectionIndex}-${itemIndex}`}>
+                        <span className="step-num">{number}</span>
+                        <p>
+                          {stepSegments(step, stepMatches[index], ingredients).map((seg, j) =>
+                            seg.ingredient ? (
+                              <mark key={j} className="step-ingredient">{seg.text}</mark>
+                            ) : (
+                              <span key={j}>{seg.text}</span>
+                            ),
+                          )}
+                        </p>
+                      </li>
+                    ))}
                   </Fragment>
                 )
               })}

@@ -1,7 +1,25 @@
 export function buildChatRequest(question, messages, recipeSlug = null) {
   const request = {
     question: question.trim(),
-    history: messages.map(({ role, content }) => ({ role, content })),
+    history: messages.map(({ role, content, recipeCards }) => {
+      const message = { role, content }
+      const recipeReferences = role === 'assistant' && Array.isArray(recipeCards)
+        ? recipeCards
+          .filter(card => (
+            typeof card?.title === 'string'
+            && card.title.trim()
+            && typeof card?.slug === 'string'
+            && card.slug.trim()
+          ))
+          .map(({ title, slug }) => ({ title, slug }))
+        : []
+
+      if (recipeReferences.length > 0) {
+        message.recipe_references = recipeReferences
+      }
+
+      return message
+    }),
   }
 
   if (recipeSlug) request.recipe_slug = recipeSlug
@@ -49,7 +67,7 @@ export function appendChatExchange(messages, question, response) {
 export function parseInlineMarkdown(value) {
   const text = String(value ?? '')
   const tokens = []
-  const pattern = /\*\*(.+?)\*\*|__(.+?)__/g
+  const pattern = /\*\*(.+?)\*\*|__(.+?)__|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g
   let lastIndex = 0
 
   for (const match of text.matchAll(pattern)) {
@@ -57,7 +75,11 @@ export function parseInlineMarkdown(value) {
     if (start > lastIndex) {
       tokens.push({ type: 'text', text: text.slice(lastIndex, start) })
     }
-    tokens.push({ type: 'strong', text: match[1] ?? match[2] })
+    if (match[3] && match[4]) {
+      tokens.push({ type: 'link', text: match[3], href: match[4] })
+    } else {
+      tokens.push({ type: 'strong', text: match[1] ?? match[2] })
+    }
     lastIndex = start + match[0].length
   }
 
@@ -97,7 +119,7 @@ export function parseAssistantContent(content) {
   }
 
   for (const line of String(content ?? '').split(/\r?\n/)) {
-    const heading = line.match(/^\s*(#{1,3})\s+(.+?)\s*#*\s*$/)
+    const heading = line.match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/)
     const unorderedItem = line.match(/^\s*[-*]\s+(.+)$/)
     const orderedItem = line.match(/^\s*(\d+)[.)]\s+(.+)$/)
 

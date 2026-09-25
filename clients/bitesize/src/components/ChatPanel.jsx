@@ -50,6 +50,20 @@ function InlineMarkdown({ text }) {
       return <strong key={`strong-${index}`}>{token.text}</strong>
     }
 
+    if (token.type === 'link') {
+      return (
+        <a
+          className="chat-answer-link"
+          href={token.href}
+          key={`link-${index}`}
+          rel="noreferrer"
+          target="_blank"
+        >
+          {token.text}
+        </a>
+      )
+    }
+
     return <span key={`text-${index}`}>{token.text}</span>
   })
 }

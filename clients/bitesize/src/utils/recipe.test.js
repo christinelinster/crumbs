@@ -6,8 +6,9 @@ import {
   filterRecipes,
   formatDuration,
   formatServings,
-  groupHeadingsAt,
   normalizeArray,
+  sectionHeading,
+  sectionItems,
 } from './recipe.js'
 
 const FILTER_RECIPES = [
@@ -63,14 +64,30 @@ test('formats recipe durations as hours and minutes when needed', () => {
   assert.equal(formatDuration(150), '2 hr 30 min')
 })
 
-test('keeps only the first named marker for each group', () => {
-  const headings = groupHeadingsAt([
-    { position: 1, group_position: 1, group_name: 'For the sauce' },
-    { position: 2, group_position: 1, group_name: 'For the sauce' },
-    { position: 3, group_position: 2, group_name: null },
-  ])
+test('flattens canonical section items in order', () => {
+  assert.deepEqual(sectionItems([
+    { kind: 'ungrouped', name: null, items: ['before'] },
+    { kind: 'group', name: 'For the sauce', items: ['oil', 'vinegar'] },
+    { kind: 'group', name: null, items: ['salt'] },
+    { kind: 'group', name: 'For the sauce', items: ['pepper'] },
+    { kind: 'ungrouped', name: null, items: ['after'] },
+  ]), ['before', 'oil', 'vinegar', 'salt', 'pepper', 'after'])
+})
 
-  assert.deepEqual([...headings.entries()], [[1, 'For the sauce']])
+test('shows headings only for named group sections', () => {
+  assert.equal(sectionHeading({ kind: 'ungrouped', name: null }), '')
+  assert.equal(sectionHeading({ kind: 'group', name: null }), '')
+  assert.equal(sectionHeading({ kind: 'group', name: ' For the sauce ' }), 'For the sauce')
+  assert.equal(sectionHeading({ kind: 'group', name: '' }), '')
+  assert.equal(sectionHeading({ kind: 'other', name: 'Hidden' }), '')
+})
+
+test('keeps section item order for duplicate group names', () => {
+  const items = sectionItems([
+    { kind: 'group', name: 'For the sauce', items: ['oil'] },
+    { kind: 'group', name: 'For the sauce', items: ['vinegar'] },
+  ])
+  assert.deepEqual(items, ['oil', 'vinegar'])
 })
 
 test('matches a selected category against the canonical category array', () => {

@@ -93,24 +93,11 @@ function normalizeKey(value) {
   return String(value).trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ')
 }
 
-export function groupHeadingsAt(markers) {
-  const headings = new Map()
-  const seenGroups = new Set()
+export function sectionItems(sections) {
+  return normalizeArray(sections).flatMap((section) => normalizeArray(section?.items))
+}
 
-  for (const marker of normalizeArray(markers)) {
-    if (
-      !marker ||
-      !Number.isInteger(marker.position) ||
-      !Number.isInteger(marker.group_position) ||
-      seenGroups.has(marker.group_position)
-    ) {
-      continue
-    }
-
-    seenGroups.add(marker.group_position)
-    const name = typeof marker.group_name === 'string' ? marker.group_name.trim() : ''
-    if (name) headings.set(marker.position, name)
-  }
-
-  return headings
+export function sectionHeading(section) {
+  if (section?.kind !== 'group' || typeof section.name !== 'string') return ''
+  return section.name.trim()
 }

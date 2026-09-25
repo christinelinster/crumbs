@@ -15,13 +15,13 @@ test('uses the Ask Crumbs launcher label', () => {
   assert.equal(CHAT_LAUNCHER_LABEL, 'Ask Crumbs')
 })
 
-test('builds a chat request from completed messages without sending recipe cards', () => {
+test('builds a chat request with compact recipe references', () => {
   const messages = [
     { role: 'user', content: 'I want breakfast.' },
     {
       role: 'assistant',
       content: 'Try steamed eggs.',
-      recipeCards: [{ slug: 'steamed-eggs' }],
+      recipeCards: [{ title: 'Steamed Eggs', slug: 'steamed-eggs', calories: 180 }],
     },
   ]
 
@@ -29,9 +29,41 @@ test('builds a chat request from completed messages without sending recipe cards
     question: 'What can I make?',
     history: [
       { role: 'user', content: 'I want breakfast.' },
-      { role: 'assistant', content: 'Try steamed eggs.' },
+      {
+        role: 'assistant',
+        content: 'Try steamed eggs.',
+        recipe_references: [{ title: 'Steamed Eggs', slug: 'steamed-eggs' }],
+      },
     ],
   })
+})
+
+test('sends ordered title and slug references from earlier assistant cards', () => {
+  const request = buildChatRequest('More like these?', [
+    { role: 'user', content: 'I want breakfast.' },
+    {
+      role: 'assistant',
+      content: 'Here are two.',
+      recipeCards: [
+        { title: 'Egg Pancakes', slug: 'egg-pancakes', calories: 300 },
+        { title: 'Turkey Bowl', slug: 'turkey-bowl', similarity_score: 0.4 },
+      ],
+    },
+    { role: 'assistant', content: 'Anything else?' },
+  ])
+
+  assert.deepEqual(request.history, [
+    { role: 'user', content: 'I want breakfast.' },
+    {
+      role: 'assistant',
+      content: 'Here are two.',
+      recipe_references: [
+        { title: 'Egg Pancakes', slug: 'egg-pancakes' },
+        { title: 'Turkey Bowl', slug: 'turkey-bowl' },
+      ],
+    },
+    { role: 'assistant', content: 'Anything else?' },
+  ])
 })
 
 test('includes the active recipe slug in a recipe-specific chat request', () => {
@@ -107,6 +139,16 @@ test('parses assistant headings and lists into renderable blocks', () => {
   )
 })
 
+test('parses level-four headings used for recipe ingredient groups', () => {
+  assert.deepEqual(
+    parseAssistantContent('#### For the sauce\n- 2 tablespoons soy sauce'),
+    [
+      { type: 'heading', level: 4, text: 'For the sauce' },
+      { type: 'unordered-list', items: ['2 tablespoons soy sauce'] },
+    ],
+  )
+})
+
 test('parses walkthrough steps and their per-step ingredient lists', () => {
   assert.deepEqual(
     parseAssistantContent(
@@ -156,6 +198,24 @@ test('parses bold inline Markdown without leaving marker characters', () => {
       { type: 'strong', text: 'Steamed Eggs' },
       { type: 'text', text: ' are silky and quick.' },
     ],
+  )
+})
+
+test('parses Markdown source links into link tokens', () => {
+  assert.deepEqual(
+    parseInlineMarkdown('Source: [Recipe site](https://example.com/recipe) 🍲'),
+    [
+      { type: 'text', text: 'Source: ' },
+      { type: 'link', text: 'Recipe site', href: 'https://example.com/recipe' },
+      { type: 'text', text: ' 🍲' },
+    ],
+  )
+})
+
+test('leaves unsafe Markdown destinations as plain text', () => {
+  assert.deepEqual(
+    parseInlineMarkdown('[unsafe](javascript:alert(1))'),
+    [{ type: 'text', text: '[unsafe](javascript:alert(1))' }],
   )
 })
 
