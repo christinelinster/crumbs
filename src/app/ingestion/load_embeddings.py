@@ -9,9 +9,10 @@ from openai import OpenAI
 
 from app.db.connection import pool
 from app.db.recipes import save_recipe
-from app.rag.embeddings import generate_embedding
-from app.paths import RECIPES_DIR
+from app.ingestion.groups import normalize_recipe_sections
 from app.ingestion.utils import canonical_url, frontmatter
+from app.paths import RECIPES_DIR
+from app.rag.embeddings import generate_embedding
 
 
 API_KEY = os.getenv("OPENAI_API_KEY")
@@ -97,16 +98,22 @@ def build_embedding_text(recipe: dict) -> str:
         value = recipe[field]
         if value:
             lines.append(f"{label}: {', '.join(value) if isinstance(value, list) else value}")
-    for field, label, group_key in (
-        ("ingredients", "Ingredients", "ingredient_groups"),
-        ("instructions", "Instructions", "instruction_groups"),
+    for field, label in (
+        ("ingredient_sections", "Ingredients"),
+        ("instruction_sections", "Instructions"),
     ):
         lines.append(f"{label}:")
-        headings = {g["start"]: g["name"] for g in recipe.get(group_key, [])}
-        for i, item in enumerate(recipe[field], 1):
-            if headings.get(i):
-                lines.append(f"{headings[i]}")
-            lines.append(f"- {item}" if field == "ingredients" else f"{i}. {item}")
+        item_position = 0
+        for section in recipe[field]:
+            if section["kind"] == "group" and section["name"]:
+                lines.append(section["name"])
+            for item in section["items"]:
+                item_position += 1
+                lines.append(
+                    f"- {item}"
+                    if field == "ingredient_sections"
+                    else f"{item_position}. {item}"
+                )
     if recipe["notes"]:
         lines.extend(("Notes:", recipe["notes"]))
     return "\n".join(lines)
@@ -124,7 +131,10 @@ def load_embeddings(
     paths = sorted(recipes_dir.glob("*.md"))
     if not paths:
         raise ValueError(f"no Markdown recipes found in {recipes_dir}")
-    recipes = [(path, parse_recipe_file(path)) for path in paths]
+    recipes = [
+        (path, normalize_recipe_sections(parse_recipe_file(path)))
+        for path in paths
+    ]
     seen_slugs = {}
     seen_urls = {}
     for path, recipe in recipes:

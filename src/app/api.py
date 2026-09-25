@@ -75,12 +75,12 @@ class ChatResponse(BaseModel):
     recipe_cards: list[RecipeCard]
 
 
-class RecipeGroupMarker(BaseModel):
-    """A group heading beginning at a position in an ordered recipe list."""
+class RecipeContentSection(BaseModel):
+    """An ordered ingredient or instruction section in a recipe."""
 
-    position: int
-    group_position: int
-    group_name: str | None
+    kind: Literal["ungrouped", "group"]
+    name: str | None
+    items: list[str]
 
 
 class RecipeDetail(RecipeSummary):
@@ -92,10 +92,8 @@ class RecipeDetail(RecipeSummary):
     source_label: str | None
     source_url: str | None
     notes: str | None
-    ingredients: list[str]
-    instructions: list[str]
-    ingredient_groups: list[RecipeGroupMarker]
-    instruction_groups: list[RecipeGroupMarker]
+    ingredient_sections: list[RecipeContentSection]
+    instruction_sections: list[RecipeContentSection]
 
 
 def create_app(database_pool=pool) -> FastAPI:
