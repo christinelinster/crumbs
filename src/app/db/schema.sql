@@ -28,22 +28,15 @@ CREATE TABLE IF NOT EXISTS recipes (
     instruction_sections JSONB NOT NULL DEFAULT '[]'::jsonb
         CHECK (jsonb_typeof(instruction_sections) = 'array'),
 
-    embedding VECTOR(1536)
+    embedding VECTOR(__EMBEDDING_DIMENSIONS__)
 );
 
   -- Embedding dimension migration for an existing database
   --
-  -- The CREATE TABLE definition above is the fresh-database default. If a new
-  -- embedding model returns a different vector dimension, replace 3072 below
-  -- with the model's dimension and run this block against the existing
-  -- database before running app.ingestion.load_embeddings. It intentionally
-  -- clears the old vectors because vectors from different dimensions or
-  -- embedding models must not be mixed.
-  --
   -- BEGIN;
   -- ALTER TABLE recipes
-  --     ALTER COLUMN embedding TYPE VECTOR(3072)
-  --     USING NULL::VECTOR(3072);
+  --     ALTER COLUMN embedding TYPE VECTOR(__EMBEDDING_DIMENSIONS__)
+  --     USING NULL::VECTOR(__EMBEDDING_DIMENSIONS__);
   -- COMMIT;
   --
   -- Then regenerate every recipe vector:

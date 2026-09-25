@@ -4,25 +4,39 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Path
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.db.connection import pool
 from app.db.recipes import get_recipe_by_slug, list_recipe_summaries
-from app.rag.query import (
-    QueryGenerationError,
-    RecipeNotFoundError,
-    process_query_result,
-)
+from app.rag.query import process_query_result
 
 
 Number = int | float | None
 
 
+class RecipeReference(BaseModel):
+    """A compact recipe identity already shown in an assistant turn."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1)
+    slug: str = Field(min_length=1)
+
+
 class ChatMessage(BaseModel):
     """A user or assistant message supplied as conversation context."""
 
+    model_config = ConfigDict(extra="forbid")
+
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1)
+    recipe_references: list[RecipeReference] | None = None
+
+    @model_validator(mode="after")
+    def only_assistant_can_reference_recipes(self) -> "ChatMessage":
+        if self.role == "user" and "recipe_references" in self.model_fields_set:
+            raise ValueError("only assistant history may include recipe references")
+        return self
 
     @field_validator("content")
     @classmethod
@@ -35,9 +49,10 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     """Input contract for the grounded chat endpoint."""
 
+    model_config = ConfigDict(extra="forbid")
+
     question: str = Field(min_length=1)
     history: list[ChatMessage] = Field(default_factory=list)
-    limit: int = Field(default=3, gt=0)
     recipe_slug: str | None = None
 
     @field_validator("question")
@@ -65,7 +80,7 @@ class RecipeSummary(BaseModel):
 class RecipeCard(RecipeSummary):
     """A condensed recipe reference returned from similarity retrieval."""
 
-    similarity_score: float
+    similarity_score: float | None = None
 
 
 class ChatResponse(BaseModel):
@@ -132,22 +147,14 @@ def create_app(database_pool=pool) -> FastAPI:
 
     @api.post("/api/chat", response_model=ChatResponse)
     def chat(request: ChatRequest) -> ChatResponse:
-        history = [message.model_dump() for message in request.history]
+        history = [message.model_dump(exclude_none=True) for message in request.history]
         try:
             result = process_query_result(
                 request.question,
                 history,
                 database_pool=database_pool,
-                limit=request.limit,
                 recipe_slug=request.recipe_slug,
             )
-        except RecipeNotFoundError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
-        except QueryGenerationError as error:
-            raise HTTPException(
-                status_code=502,
-                detail="chat model returned an invalid response",
-            ) from error
         except (OSError, RuntimeError, ValueError) as error:
             raise HTTPException(
                 status_code=503,

@@ -1,7 +1,7 @@
 """Database writes and reads for recipes with ordered content sections."""
 
 from psycopg.types.json import Jsonb
-
+from app.settings import DEFAULT_SIMILARITY_THRESHOLD
 
 def save_recipe(conn, recipe: dict, embedding: list[float]) -> bool:
     """Save a recipe and its content sections inside the caller's transaction."""
@@ -69,9 +69,11 @@ RECIPE_REPOSITORY_DETAIL_FIELDS = RECIPE_DETAIL_METADATA_FIELDS + (
     "notes", "ingredient_sections", "instruction_sections",
 )
 RECIPE_SEARCH_FIELDS = RECIPE_REPOSITORY_DETAIL_FIELDS + ("similarity_score",)
-
-DEFAULT_SIMILARITY_THRESHOLD = 0.25
-
+RECIPE_ANCHOR_FIELDS = (
+    "slug", "title", "description", "category", "tags", "cuisine",
+    "total_time_minutes", "servings", "calories", "protein", "carbs", "fat",
+    "embedding",
+)
 
 def _validate_search_limit(limit: int):
     if type(limit) is not int or limit <= 0:
@@ -92,16 +94,32 @@ def list_recipe_summaries(conn) -> list[dict[str, object]]:
     return [dict(zip(RECIPE_SUMMARY_FIELDS, row)) for row in rows]
 
 
-def get_recipe_by_slug(conn, slug: str) -> dict[str, object] | None:
-    """Return canonical recipe detail data for one persisted slug."""
-    row = conn.execute(
+def get_recipe_by_slug(
+    conn,
+    slug: str,
+    *,
+    include_embedding: bool = False,
+) -> dict[str, object] | None:
+    """Return a recipe by slug, optionally including compact similarity fields."""
+    if include_embedding:
+        fields = RECIPE_ANCHOR_FIELDS
+        selected_fields = """
+            r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
+            r.total_time_minutes, r.servings, r.calories, r.protein, r.carbs, r.fat,
+            r.embedding::real[] AS embedding
         """
-        SELECT
+    else:
+        fields = RECIPE_REPOSITORY_DETAIL_FIELDS
+        selected_fields = """
             r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
             r.total_time_minutes, r.servings, r.calories, r.protein, r.carbs, r.fat,
             r.source_label, r.source_url, r.notes,
-            r.ingredient_sections,
-            r.instruction_sections
+            r.ingredient_sections, r.instruction_sections
+        """
+
+    row = conn.execute(
+        f"""
+        SELECT {selected_fields}
         FROM recipes AS r
         WHERE r.slug = %s
         """,
@@ -109,13 +127,16 @@ def get_recipe_by_slug(conn, slug: str) -> dict[str, object] | None:
     ).fetchone()
     if row is None:
         return None
-    return dict(zip(RECIPE_REPOSITORY_DETAIL_FIELDS, row))
+    return dict(zip(fields, row))
 
 
 def find_similar_recipes(
     conn,
     embedding: list[float],
     limit: int,
+    *,
+    minimum_similarity: float | None = DEFAULT_SIMILARITY_THRESHOLD,
+    exclude_slug: str | None = None,
 ) -> list[dict[str, object]]:
     """Return complete recipe context and scores ordered by similarity."""
 
@@ -131,14 +152,23 @@ def find_similar_recipes(
         FROM recipes AS r
         WHERE r.embedding IS NOT NULL
     """
+    filters = []
+    params: list[object] = [embedding]
+    if exclude_slug is not None:
+        filters.append("scored_recipes.slug <> %s")
+        params.append(exclude_slug)
+    if minimum_similarity is not None:
+        filters.append("scored_recipes.similarity_score >= %s")
+        params.append(minimum_similarity)
+    where_clause = f" WHERE {' AND '.join(filters)}" if filters else ""
     query = f"""
         SELECT *
         FROM ({base_query}) AS scored_recipes
-        WHERE scored_recipes.similarity_score >= %s
+        {where_clause}
         ORDER BY scored_recipes.similarity_score DESC
         LIMIT %s
     """
-    params = (embedding, DEFAULT_SIMILARITY_THRESHOLD, limit)
+    params.append(limit)
 
-    rows = conn.execute(query, params).fetchall()
+    rows = conn.execute(query, tuple(params)).fetchall()
     return [dict(zip(RECIPE_SEARCH_FIELDS, row)) for row in rows]
