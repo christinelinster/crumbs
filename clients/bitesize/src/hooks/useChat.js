@@ -1,8 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   appendAssistantMessage,
   appendUserMessage,
   buildChatRequest,
+  loadChatSession,
+  newChatSession,
+  saveChatSession,
 } from '../utils/chat'
 
 function errorMessage(error) {
@@ -10,9 +13,15 @@ function errorMessage(error) {
 }
 
 export default function useChat(recipeSlug = null) {
-  const [messages, setMessages] = useState([])
+  const [session, setSession] = useState(loadChatSession)
+  const { messages, retrievalBackend, sharedMemory } = session
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [storageAvailable, setStorageAvailable] = useState(true)
+
+  useEffect(() => {
+    setStorageAvailable(saveChatSession(session))
+  }, [session])
 
   const sendMessage = useCallback(async (question) => {
     const content = question.trim()
@@ -24,7 +33,7 @@ export default function useChat(recipeSlug = null) {
         ? messages.slice(0, -1)
         : messages
 
-    setMessages((current) => appendUserMessage(current, content))
+    setSession((current) => ({ ...current, messages: appendUserMessage(current.messages, content) }))
     setLoading(true)
     setError(null)
 
@@ -32,15 +41,20 @@ export default function useChat(recipeSlug = null) {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildChatRequest(content, requestHistory, recipeSlug)),
+        body: JSON.stringify(buildChatRequest(content, requestHistory, recipeSlug, retrievalBackend, {
+          sharedMemory: sharedMemory && retrievalBackend === 'zep',
+          threadUuid: session.threadUuid,
+        })),
       })
       const data = await response.json()
-
       if (!response.ok) {
         throw new Error(data.detail || `Request failed with status ${response.status}`)
       }
-
-      setMessages((current) => appendAssistantMessage(current, data))
+      setSession((current) => ({
+        ...current,
+        messages: appendAssistantMessage(current.messages, data),
+        threadUuid: data.thread_uuid ?? current.threadUuid,
+      }))
       return true
     } catch (requestError) {
       setError(errorMessage(requestError))
@@ -48,12 +62,26 @@ export default function useChat(recipeSlug = null) {
     } finally {
       setLoading(false)
     }
-  }, [loading, messages, recipeSlug])
+  }, [loading, messages, recipeSlug, retrievalBackend, sharedMemory, session.threadUuid])
 
   const reset = useCallback(() => {
-    setMessages([])
+    setSession((current) => newChatSession(current))
     setError(null)
   }, [])
 
-  return { messages, loading, error, sendMessage, reset }
+  function changeRetrievalBackend(backend) {
+    if (loading) return
+    setSession((current) => newChatSession({ ...current, retrievalBackend: backend }))
+    setError(null)
+  }
+
+  function changeSharedMemory(enabled) {
+    if (loading) return
+    setSession((current) => ({ ...current, sharedMemory: enabled, threadUuid: null }))
+  }
+
+  return {
+    messages, loading, error, sendMessage, reset, retrievalBackend, changeRetrievalBackend,
+    sharedMemory, changeSharedMemory, storageAvailable,
+  }
 }

@@ -16,3 +16,7 @@ except ValueError:
 if EMBEDDING_DIMENSIONS <= 0:
     raise ValueError("EMBEDDING_DIMENSIONS must be a positive integer")
 OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+
+ZEP_API_KEY = os.getenv("ZEP_API_KEY")
+ZEP_GRAPH_UUID = os.getenv("ZEP_GRAPH_UUID")
+ZEP_USER_UUID = os.getenv("ZEP_USER_UUID")

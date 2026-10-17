@@ -119,7 +119,7 @@ are not part of user-editable history.
 | 004 | Bitesize chat API | [docs/superpowers/specs/004-bitesize-chat-api.md](docs/superpowers/specs/004-bitesize-chat-api.md) | Implemented | 001, 003 |
 | 005 | Question-intent routing | [docs/superpowers/specs/005-question-intent-routing.md](docs/superpowers/specs/005-question-intent-routing.md) | Draft | 004 |
 | 007 | Recipe content arrays | [docs/superpowers/specs/007-recipe-content-arrays.md](docs/superpowers/specs/007-recipe-content-arrays.md) | Implemented | None |
-| 008 | Graphiti and Neo4j recipe retrieval | [docs/superpowers/specs/008-graphiti-neo4j-recipe-retrieval.md](docs/superpowers/specs/008-graphiti-neo4j-recipe-retrieval.md) | Awaiting approval | 003, 004, 007 |
+| 008 | Zep recipe retrieval | [docs/superpowers/specs/008-zep-recipe-retrieval.md](docs/superpowers/specs/008-zep-recipe-retrieval.md) | Approved | 003, 004, 007 |
 
 ## Deferred considerations
 

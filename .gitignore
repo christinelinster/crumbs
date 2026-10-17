@@ -46,3 +46,6 @@ venv.bak/
 
 # Models
 AGENTS.md
+
+# Local Zep experiment artifacts
+.zep/

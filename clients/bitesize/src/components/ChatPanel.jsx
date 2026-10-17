@@ -126,9 +126,16 @@ function ChatMessage({ message }) {
     <div className="chat-message chat-message--assistant">
       <span className="chat-message-label"><ChatMark /> Crumbs</span>
       <AssistantAnswer content={message.content} />
+      {message.memoryStatus && (
+        <p className="chat-memory-status" role="status">
+          {message.memoryStatus === 'saved'
+            ? 'Conversation saved to Zep. Graph updates may still be processing.'
+            : 'Memory save failed or could not be confirmed. Your answer is still available.'}
+        </p>
+      )}
       {message.recipeCards?.length > 0 && (
         <div className="chat-references">
-          <span className="chat-references-label">Recipes used for this answer</span>
+          <span className="chat-references-label">Recipes in this answer</span>
           {message.recipeCards.map((recipe) => (
             <RecipeReference
               key={recipe.slug}
@@ -151,6 +158,11 @@ export default function ChatPanel({
   sendMessage,
   recipeContext,
   onClearRecipeContext,
+  retrievalBackend,
+  changeRetrievalBackend,
+  sharedMemory,
+  changeSharedMemory,
+  storageAvailable,
 }) {
   const [draft, setDraft] = useState('')
   const messagesRef = useRef(null)
@@ -201,7 +213,7 @@ export default function ChatPanel({
             <p>Ask for a recipe, an idea, or a way through dinner.</p>
           </div>
           <div className="chat-panel-actions">
-            <button type="button" className="chat-icon-button" onClick={handleNewChat}>
+            <button type="button" className="chat-icon-button" onClick={handleNewChat} disabled={loading}>
               New chat
             </button>
             <button type="button" className="chat-close" onClick={onClose} aria-label="Close chat">
@@ -209,6 +221,36 @@ export default function ChatPanel({
             </button>
           </div>
         </header>
+
+        <label className="chat-backend">
+          Retrieval
+          <select
+            value={retrievalBackend}
+            onChange={(event) => changeRetrievalBackend(event.target.value)}
+            disabled={loading}
+          >
+            <option value="zep">Zep graph</option>
+            <option value="vector">Vector RAG</option>
+          </select>
+        </label>
+
+        {retrievalBackend === 'zep' && (
+          <div className="chat-memory-controls">
+            <label>
+              <input
+                type="checkbox"
+                checked={sharedMemory}
+                disabled={loading}
+                onChange={(event) => changeSharedMemory(event.target.checked)}
+              />
+              Use shared test memory
+            </label>
+            <small>When enabled, messages are saved to Zep. Everyone shares this test user's preferences.</small>
+          </div>
+        )}
+        {!storageAvailable && (
+          <p className="chat-memory-status" role="status">Reload recovery is unavailable in this browser.</p>
+        )}
 
         {recipeContext && (
           <div className="chat-context" role="status">

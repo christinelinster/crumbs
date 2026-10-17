@@ -59,11 +59,12 @@ def provider_tool_call(name, arguments, call_id="call-1"):
     )
 
 
-def provider_response(content=None, tool_calls=None, finish_reason="stop", extra_output=None):
+def provider_response(content=None, tool_calls=None, finish_reason="stop", extra_output=None, recipe_slugs=()):
     status = "incomplete" if finish_reason == "length" else "completed"
     return SimpleNamespace(
         output=[*(extra_output or []), *(tool_calls or [])],
         output_text=content,
+        recipe_slugs=list(recipe_slugs),
         status=status,
         incomplete_details=(
             SimpleNamespace(reason="max_output_tokens")
@@ -137,8 +138,15 @@ class FakeChatClient:
         self.error = error
         self.on_chat = on_chat
         self.response_queue = list(responses or [])
-        self.responses = SimpleNamespace(create=self.create)
+        self.responses = SimpleNamespace(create=self.create, parse=self.parse)
         self.calls = []
+
+    def parse(self, *, text_format, **kwargs):
+        response = self.create(text_format=text_format, **kwargs)
+        response.output_parsed = text_format(
+            answer=response.output_text or "", recipe_slugs=response.recipe_slugs,
+        )
+        return response
 
     def create(self, *, model, input, instructions=None, **kwargs):
         self.calls.append({
@@ -290,11 +298,12 @@ class QueryToolExecutionTests(QueryTestCase):
         answer="Here is the result.",
         embedding=None,
         response_output_items=None,
+        recipe_slugs=(),
     ):
         embedding = embedding or FakeEmbeddingClient([0.1] * EMBEDDING_DIMENSIONS)
         chat = FakeChatClient(responses=[
             provider_response(tool_calls=tool_calls, extra_output=response_output_items),
-            provider_response(content=answer),
+            provider_response(content=answer, recipe_slugs=recipe_slugs),
         ])
         self.use_client(SimpleNamespace(embeddings=embedding, responses=chat.responses))
         return embedding, chat
@@ -348,7 +357,7 @@ class QueryToolExecutionTests(QueryTestCase):
         self.assertEqual(detail_result["recipe"]["instruction_sections"], RECIPE_ROW[-2])
         self.assertIn("2 eggs", chat.calls[-1]["input"][-1]["output"])
         self.assertNotIn("tools", chat.calls[-1])
-        self.assertEqual(chat.calls[-1]["instructions"], query_module.ANSWER_SYSTEM_PROMPT)
+        self.assertTrue(chat.calls[-1]["instructions"].startswith(query_module.ANSWER_SYSTEM_PROMPT))
         self.assertEqual(len(chat.calls), 2)
         self.assertEqual(history[-2:], [
             {"role": "user", "content": "Tell me about Steamed Eggs"},
@@ -431,7 +440,7 @@ class QueryToolExecutionTests(QueryTestCase):
         ]
         embedding, chat = self.client_for_tools([
             provider_tool_call("get_recipes", {"input": "high protein pancakes"})
-        ])
+        ], recipe_slugs=['protein-pancakes'])
         connection = FakeConnection(rows)
 
         result = self.execute_tools(
@@ -466,7 +475,7 @@ class QueryToolExecutionTests(QueryTestCase):
                 "input": "high protein pancakes",
                 "limit": 3,
             })
-        ])
+        ], recipe_slugs=['protein-pancakes', 'egg-pancakes', 'cottage-cheese-pancakes'])
         connection = FakeConnection(rows)
 
         result = self.execute_tools("Show me 3 pancake recipes", [], FakePool(connection))
@@ -489,7 +498,7 @@ class QueryToolExecutionTests(QueryTestCase):
         ]
         _, chat = self.client_for_tools([
             provider_tool_call("get_recipes", {"input": "pancakes"})
-        ])
+        ], recipe_slugs=['egg-pancakes', 'cottage-cheese-pancakes'])
 
         result = self.execute_tools(
             "Find pancake recipes",
@@ -529,7 +538,7 @@ class QueryToolExecutionTests(QueryTestCase):
         ], embedding=FakeEmbeddingClient(
             [0.1] * EMBEDDING_DIMENSIONS,
             error=RuntimeError("anchored search must not embed"),
-        ))
+        ), recipe_slugs=['egg-custard'])
         connection = FakeConnection([candidate], row=ANCHOR_ROW)
         database_pool = FakePool(connection)
 
@@ -561,7 +570,7 @@ class QueryToolExecutionTests(QueryTestCase):
             }, "call-search"),
         ]
         reasoning_item = {"type": "reasoning", "id": "rs_test", "summary": []}
-        _, chat = self.client_for_tools(calls, response_output_items=[reasoning_item])
+        _, chat = self.client_for_tools(calls, response_output_items=[reasoning_item], recipe_slugs=['egg-custard'])
         connection = FakeConnection(
             [recipe_with_score(0.42, slug="egg-custard", title="Egg Custard")],
             row=RECIPE_ROW[:-1],

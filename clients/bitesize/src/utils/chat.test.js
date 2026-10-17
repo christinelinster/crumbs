@@ -228,3 +228,52 @@ test('appends the assistant response to an already-visible user message', () => 
     { role: 'assistant', content: 'Try steamed eggs.', recipeCards: [] },
   ])
 })
+
+
+test('sends the selected retrieval backend for Bitesize chat', () => {
+  assert.equal(buildChatRequest('dinner', [], null, 'zep').retrieval_backend, 'zep')
+  assert.equal(buildChatRequest('dinner', [], null, 'vector').retrieval_backend, 'vector')
+})
+
+test('reload restores transcript, toggle, backend, and Zep thread ID', async () => {
+  const { loadChatSession, saveChatSession } = await import('./chat.js')
+  let value = null
+  const storage = { getItem: () => value, setItem: (key, data) => { value = data } }
+  const session = {
+    messages: [
+      { role: 'user', content: 'I avoid onions.' },
+      { role: 'assistant', content: 'Try tofu.', recipeCards: [{ slug: 'tofu' }], memoryStatus: 'saved' },
+    ],
+    threadUuid: 'thread-1', sharedMemory: true, retrievalBackend: 'zep',
+  }
+  assert.equal(saveChatSession(session, storage), true)
+  assert.deepEqual(loadChatSession(storage), session)
+})
+
+test('new chat clears transcript and thread while keeping the memory choice', async () => {
+  const { newChatSession } = await import('./chat.js')
+  const next = newChatSession({
+    messages: [{ role: 'user', content: 'Old chat' }],
+    threadUuid: 'old-thread', sharedMemory: true, retrievalBackend: 'zep',
+  })
+  assert.deepEqual(next.messages, [])
+  assert.equal(next.threadUuid, null)
+  assert.equal(next.sharedMemory, true)
+})
+
+test('blocked or corrupt storage leaves chat usable without claiming persistence', async () => {
+  const { loadChatSession, saveChatSession } = await import('./chat.js')
+  const storage = { getItem: () => '{invalid', setItem: () => { throw new Error('full') } }
+  assert.deepEqual(loadChatSession(storage).messages, [])
+  assert.equal(saveChatSession({ messages: [] }, storage), false)
+})
+
+test('only enabled turns send shared-memory and thread fields', () => {
+  const memory = { sharedMemory: true, threadUuid: 'thread-1' }
+  const enabled = buildChatRequest('dinner', [], null, 'zep', memory)
+  assert.equal(enabled.shared_memory, true)
+  assert.equal(enabled.thread_uuid, 'thread-1')
+  const disabled = buildChatRequest('dinner', [], null, 'zep', { ...memory, sharedMemory: false })
+  assert.equal(disabled.shared_memory, undefined)
+  assert.equal(disabled.thread_uuid, undefined)
+})

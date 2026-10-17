@@ -1905,3 +1905,42 @@ button {
     animation: none !important;
   }
 }
+
+
+.chat-backend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.85rem;
+}
+
+.chat-backend select {
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid currentColor;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: inherit;
+}
+
+
+.chat-memory-controls {
+  padding: 0 1.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.chat-memory-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-memory-controls small,
+.chat-memory-status {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}

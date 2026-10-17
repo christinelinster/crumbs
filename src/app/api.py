@@ -1,14 +1,21 @@
-"""Read-only HTTP API for the Crumbs recipe corpus."""
+"""Recipe API with optional shared test-user memory."""
 
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Path
+from httpx import HTTPError
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from zep_cloud.core.api_error import ApiError
 
 from app.db.connection import pool
 from app.db.recipes import get_recipe_by_slug, list_recipe_summaries
 from app.rag.query import process_query_result
+from app import settings
+from app.zep.client import get_zep
+from app.zep.ingest import save_messages
+from app.zep.retrieval import search_preferences
 
 
 Number = int | float | None
@@ -54,6 +61,9 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1)
     history: list[ChatMessage] = Field(default_factory=list)
     recipe_slug: str | None = None
+    retrieval_backend: Literal["vector", "zep"] = "vector"
+    shared_memory: bool = False
+    thread_uuid: UUID | None = None
 
     @field_validator("question")
     @classmethod
@@ -88,6 +98,8 @@ class ChatResponse(BaseModel):
 
     answer: str
     recipe_cards: list[RecipeCard]
+    thread_uuid: str | None = None
+    memory_status: Literal["saved", "error"] | None = None
 
 
 class RecipeContentSection(BaseModel):
@@ -148,21 +160,50 @@ def create_app(database_pool=pool) -> FastAPI:
     @api.post("/api/chat", response_model=ChatResponse)
     def chat(request: ChatRequest) -> ChatResponse:
         history = [message.model_dump(exclude_none=True) for message in request.history]
+        zep = None
+        thread_uuid = None
+        memory_context = None
         try:
+            if request.shared_memory:
+                if not settings.ZEP_USER_UUID:
+                    raise HTTPException(503, "Set ZEP_USER_UUID to enable shared memory")
+                zep = get_zep()
+                if request.thread_uuid:
+                    thread_uuid = str(request.thread_uuid)
+                    if zep.thread.get(thread_uuid).user_uuid != settings.ZEP_USER_UUID:
+                        raise HTTPException(404, "shared test thread not found")
+                else:
+                    thread_uuid = zep.thread.create(user_uuid=settings.ZEP_USER_UUID).uuid_
+                preferences = search_preferences(zep, settings.ZEP_USER_UUID, request.question)
+                memory_context = [
+                    edge.model_dump(mode="json", exclude_none=True)
+                    for edge in preferences.items or []
+                ]
             result = process_query_result(
                 request.question,
                 history,
                 database_pool=database_pool,
                 recipe_slug=request.recipe_slug,
+                retrieval_backend=request.retrieval_backend,
+                memory_context=memory_context,
             )
-        except (OSError, RuntimeError, ValueError) as error:
+        except (OSError, RuntimeError, ValueError, ApiError, HTTPError) as error:
             raise HTTPException(
                 status_code=503,
                 detail="chat service unavailable",
             ) from error
+        memory_status = None
+        if zep is not None:
+            try:
+                save_messages(zep, thread_uuid, request.question, result.answer)
+                memory_status = "saved"
+            except (OSError, RuntimeError, ValueError, ApiError, HTTPError):
+                memory_status = "error"
         return ChatResponse(
             answer=result.answer,
             recipe_cards=result.recipe_cards,
+            thread_uuid=thread_uuid,
+            memory_status=memory_status,
         )
 
     return api

@@ -6,7 +6,7 @@ authors = [
     {name = "Christine Lin",email = "lin.christine19@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<4.0"
 dependencies = [
     "openai (>=3.16.1,<4.0.0)",
     "python-dotenv (>=1.2.3,<2.0.0)",
@@ -16,7 +16,8 @@ dependencies = [
     "httpx (>=0.28.1,<0.29.0)",
     "uvicorn (>=0.35.0,<0.36.0)",
     "beautifulsoup4 (>=4.15.0,<5.0.0)",
-    "pyyaml (>=6.0.3,<7.0.0)"
+    "pyyaml (>=6.0.3,<7.0.0)",
+    "zep-cloud (==4.0.0)"
 ]
 
 [tool.poetry]

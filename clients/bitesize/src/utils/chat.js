@@ -1,4 +1,4 @@
-export function buildChatRequest(question, messages, recipeSlug = null) {
+export function buildChatRequest(question, messages, recipeSlug = null, retrievalBackend = null, memory = {}) {
   const request = {
     question: question.trim(),
     history: messages.map(({ role, content, recipeCards }) => {
@@ -23,6 +23,11 @@ export function buildChatRequest(question, messages, recipeSlug = null) {
   }
 
   if (recipeSlug) request.recipe_slug = recipeSlug
+  if (retrievalBackend) request.retrieval_backend = retrievalBackend
+  if (memory.sharedMemory) {
+    request.shared_memory = true
+    if (memory.threadUuid) request.thread_uuid = memory.threadUuid
+  }
   return request
 }
 
@@ -53,6 +58,7 @@ export function appendAssistantMessage(messages, response) {
       role: 'assistant',
       content: response.answer,
       recipeCards: response.recipe_cards ?? [],
+      ...(response.memory_status ? { memoryStatus: response.memory_status } : {}),
     },
   ]
 }
@@ -156,4 +162,39 @@ export function parseAssistantContent(content) {
 
   flushBlocks()
   return blocks
+}
+
+
+const CHAT_SESSION_KEY = 'crumbs-chat-v1'
+
+export function newChatSession(previous = {}) {
+  return { retrievalBackend: 'zep', sharedMemory: false, ...previous, messages: [], threadUuid: null }
+}
+
+export function loadChatSession(storage) {
+  try {
+    const saved = JSON.parse((storage ?? globalThis.localStorage).getItem(CHAT_SESSION_KEY))
+    if (saved && Array.isArray(saved.messages)) {
+      return {
+        messages: saved.messages.filter(message => (
+          ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string'
+        )).map(message => message.role === 'assistant'
+          ? { ...message, recipeCards: Array.isArray(message.recipeCards) ? message.recipeCards : [] }
+          : message),
+        threadUuid: typeof saved.threadUuid === 'string' ? saved.threadUuid : null,
+        sharedMemory: saved.sharedMemory === true,
+        retrievalBackend: saved.retrievalBackend === 'vector' ? 'vector' : 'zep',
+      }
+    }
+  } catch { /* Missing or blocked storage leaves chat usable. */ }
+  return newChatSession()
+}
+
+export function saveChatSession(session, storage) {
+  try {
+    (storage ?? globalThis.localStorage).setItem(CHAT_SESSION_KEY, JSON.stringify(session))
+    return true
+  } catch {
+    return false
+  }
 }
