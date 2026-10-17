@@ -1,14 +1,16 @@
 from contextlib import contextmanager
+import inspect
+import json
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from app.db import recipes as recipe_repository
 from app.db.recipes import DEFAULT_SIMILARITY_THRESHOLD, find_similar_recipes
+from app.rag import query as query_module
+from app.settings import DEFAULT_RECIPE_LIMIT, EMBEDDING_DIMENSIONS
 from app.rag.query import (
-    QueryGenerationError,
-    RecipeNotFoundError,
     build_recipe_cards,
-    process_query,
     process_query_result,
 )
 
@@ -29,13 +31,46 @@ RECIPE_ROW = (
     "Crumbs",
     None,
     "Steam gently.",
-    ["2 eggs", "1 cup water"],
-    ["Whisk the eggs.", "Steam until set."],
-    [{"position": 1, "group_position": 1, "group_name": "Egg mixture"},
-     {"position": 2, "group_position": 1, "group_name": "Egg mixture"}],
-    [],
+    [{"kind": "group", "name": "Egg mixture", "items": ["2 eggs", "1 cup water"]}],
+    [{"kind": "ungrouped", "name": None, "items": ["Whisk the eggs.", "Steam until set."]}],
     0.91,
 )
+ANCHOR_ROW = RECIPE_ROW[:12] + ([0.2] * EMBEDDING_DIMENSIONS,)
+
+
+def recipe_with_score(score, *, slug=None, title=None):
+    row = list(RECIPE_ROW)
+    row[-1] = score
+    if slug is not None:
+        row[0] = slug
+    if title is not None:
+        row[1] = title
+    return tuple(row)
+
+
+def provider_tool_call(name, arguments, call_id="call-1"):
+    return SimpleNamespace(
+        id=f"fc_{call_id}",
+        type="function_call",
+        status="completed",
+        call_id=call_id,
+        name=name,
+        arguments=json.dumps(arguments),
+    )
+
+
+def provider_response(content=None, tool_calls=None, finish_reason="stop", extra_output=None):
+    status = "incomplete" if finish_reason == "length" else "completed"
+    return SimpleNamespace(
+        output=[*(extra_output or []), *(tool_calls or [])],
+        output_text=content,
+        status=status,
+        incomplete_details=(
+            SimpleNamespace(reason="max_output_tokens")
+            if status == "incomplete"
+            else None
+        ),
+    )
 
 
 class FakeResult:
@@ -97,28 +132,28 @@ class FakeEmbeddingClient:
 
 
 class FakeChatClient:
-    def __init__(self, answer="Try the steamed eggs.", error=None, on_chat=None, choices=None):
+    def __init__(self, answer="Try the steamed eggs.", error=None, on_chat=None, responses=None):
         self.answer = answer
         self.error = error
         self.on_chat = on_chat
-        self.choices = choices
-        self.chat = self
-        self.completions = self
+        self.response_queue = list(responses or [])
+        self.responses = SimpleNamespace(create=self.create)
         self.calls = []
 
-    def create(self, *, model, messages):
-        self.calls.append({"model": model, "messages": messages})
+    def create(self, *, model, input, instructions=None, **kwargs):
+        self.calls.append({
+            "model": model,
+            "input": input,
+            "instructions": instructions,
+            **kwargs,
+        })
         if self.on_chat:
             self.on_chat()
         if self.error:
             raise self.error
-        choices = self.choices
-        if choices is None:
-            choices = [SimpleNamespace(
-                finish_reason="stop",
-                message=SimpleNamespace(content=self.answer),
-            )]
-        return SimpleNamespace(choices=choices)
+        if self.response_queue:
+            return self.response_queue.pop(0)
+        return provider_response(content=self.answer)
 
 
 class QueryTestCase(unittest.TestCase):
@@ -133,20 +168,505 @@ class QueryTestCase(unittest.TestCase):
         return client
 
 
+class QueryRoutingTests(QueryTestCase):
+    def test_direct_how_to_skips_embedding_database_and_answer_completion(self):
+        connection = FakeConnection([RECIPE_ROW])
+        database_pool = FakePool(connection)
+        embedding_client = FakeEmbeddingClient([0.1] * EMBEDDING_DIMENSIONS)
+        chat = FakeChatClient(
+            answer=(
+                "Roast broccoli at high heat until browned. Crumbs can help you "
+                "find a specific recipe."
+            ),
+        )
+        self.use_client(SimpleNamespace(embeddings=embedding_client, responses=chat.responses))
+
+        result = process_query_result(
+            "How do I roast broccoli?",
+            [],
+            database_pool=database_pool,
+        )
+
+        self.assertEqual(result.recipe_cards, [])
+        self.assertEqual(result.retrieved_context, [])
+        self.assertEqual(embedding_client.calls, [])
+        self.assertEqual(database_pool.connection_count, 0)
+        self.assertEqual(len(chat.calls), 1)
+
+    def test_general_nutrition_and_unrelated_requests_use_direct_answers(self):
+        cases = (
+            (
+                "Is protein important for muscle recovery?",
+                "I'm Crumbs, a recipe assistant, and I don't have information to answer that.",
+            ),
+            (
+                "What is the capital of France?",
+                "I'm Crumbs, a recipe assistant, and I don't have information to answer that.",
+            ),
+        )
+        for question, answer in cases:
+            with self.subTest(question=question):
+                connection = FakeConnection([RECIPE_ROW])
+                database_pool = FakePool(connection)
+                embedding_client = FakeEmbeddingClient([0.1] * EMBEDDING_DIMENSIONS)
+                chat = FakeChatClient(answer=answer)
+                self.use_client(SimpleNamespace(embeddings=embedding_client, responses=chat.responses))
+
+                result = process_query_result(question, [], database_pool=database_pool)
+
+                self.assertEqual(result.answer, answer)
+                self.assertEqual(result.recipe_cards, [])
+                self.assertEqual(embedding_client.calls, [])
+                self.assertEqual(database_pool.connection_count, 0)
+                self.assertEqual(len(chat.calls), 1)
+                self.assertIn("does not have information to answer", chat.calls[0]["instructions"])
+                self.assertIn(
+                    "do not answer from general knowledge",
+                    chat.calls[0]["instructions"].lower(),
+                )
+
+    def test_initial_request_uses_history_and_offers_only_recipe_tools(self):
+        chat = FakeChatClient(answer="Which recipe would you like to discuss?")
+        history = [
+            {"role": "user", "content": "I wanted chicken breakfast ideas."},
+            {
+                "role": "assistant",
+                "content": "1. Chicken Pancakes. 2. Chicken Sausage Bowl.",
+                "recipe_references": [
+                    {"title": "Chicken Pancakes", "slug": "chicken-pancakes"},
+                    {"title": "Chicken Sausage Bowl", "slug": "chicken-sausage-bowl"},
+                ],
+            },
+        ]
+        self.use_client(SimpleNamespace(
+            embeddings=FakeEmbeddingClient([0.1] * EMBEDDING_DIMENSIONS),
+            responses=chat.responses,
+        ))
+
+        result = process_query_result(
+            "Tell me more about the first chicken recipe.",
+            history,
+        )
+
+        self.assertEqual(result.answer, "Which recipe would you like to discuss?")
+        self.assertEqual(chat.calls[0]["input"], [
+            {"role": "user", "content": "I wanted chicken breakfast ideas."},
+            {"role": "assistant", "content": "1. Chicken Pancakes. 2. Chicken Sausage Bowl."},
+            {"role": "user", "content": "Tell me more about the first chicken recipe."},
+        ])
+        router_prompt = chat.calls[0]["instructions"]
+        self.assertEqual(router_prompt, query_module.ROUTER_SYSTEM_PROMPT)
+        self.assertIn("<tools>", router_prompt)
+        self.assertIn("</tools>", router_prompt)
+        self.assertIn("get_recipe_detail", router_prompt)
+        self.assertIn("get_recipes", router_prompt)
+        self.assertIn("recipe collection", router_prompt.lower())
+        self.assertIn("do not answer from general knowledge", router_prompt.lower())
+        self.assertEqual(chat.calls[0]["tools"], query_module.RECIPE_TOOLS)
+        self.assertEqual(chat.calls[0]["tool_choice"], "auto")
+
+
+class QueryToolExecutionTests(QueryTestCase):
+    def test_existing_and_newer_models_use_the_responses_api(self):
+        for model in ("gpt-4o-mini", "gpt-6-luna"):
+            with self.subTest(model=model), patch.object(query_module, "CHAT_MODEL", model):
+                _, client = self.client_for_tools([
+                    provider_tool_call("get_recipe_detail", {"slug": "steamed-eggs"})
+                ])
+
+                self.execute_tools(
+                    "Tell me about Steamed Eggs",
+                    [],
+                    FakePool(FakeConnection([], row=RECIPE_ROW[:-1])),
+                )
+
+                self.assertEqual([call["model"] for call in client.calls], [model, model])
+                self.assertTrue(all("messages" not in call for call in client.calls))
+                self.assertTrue(all("reasoning_effort" not in call for call in client.calls))
+
+    def client_for_tools(
+        self,
+        tool_calls,
+        answer="Here is the result.",
+        embedding=None,
+        response_output_items=None,
+    ):
+        embedding = embedding or FakeEmbeddingClient([0.1] * EMBEDDING_DIMENSIONS)
+        chat = FakeChatClient(responses=[
+            provider_response(tool_calls=tool_calls, extra_output=response_output_items),
+            provider_response(content=answer),
+        ])
+        self.use_client(SimpleNamespace(embeddings=embedding, responses=chat.responses))
+        return embedding, chat
+
+    def execute_tools(self, question, history, database_pool, recipe_slug=None):
+        return process_query_result(
+            question,
+            history,
+            database_pool=database_pool,
+            recipe_slug=recipe_slug,
+        )
+
+    def tool_results(self, chat):
+        return [
+            json.loads(item["output"])
+            for item in chat.calls[-1]["input"]
+            if isinstance(item, dict) and item.get("type") == "function_call_output"
+        ]
+
+    def test_new_detail_returns_full_content_without_a_card(self):
+        detail_call = provider_tool_call(
+            "get_recipe_detail",
+            {"slug": "steamed-eggs"},
+        )
+        embedding, chat = self.client_for_tools(
+            [detail_call],
+            answer="Steamed Eggs use eggs and water.",
+            embedding=FakeEmbeddingClient(
+                [0.1] * EMBEDDING_DIMENSIONS,
+                error=RuntimeError("detail lookup must not embed"),
+            ),
+        )
+        connection = FakeConnection([], row=RECIPE_ROW[:-1])
+        database_pool = FakePool(connection)
+        history = []
+
+        result = self.execute_tools(
+            "Tell me about Steamed Eggs",
+            history,
+            database_pool,
+        )
+
+        self.assertEqual(result.recipe_cards, [])
+        self.assertEqual(embedding.calls, [])
+        self.assertEqual(database_pool.connection_count, 1)
+        self.assertEqual(len(connection.calls), 1)
+        self.assertTrue(connection.calls[0][0].lstrip().startswith("SELECT"))
+        detail_result = self.tool_results(chat)[0]
+        self.assertEqual(detail_result["tool_name"], "get_recipe_detail")
+        self.assertEqual(detail_result["recipe"]["ingredient_sections"], RECIPE_ROW[-3])
+        self.assertEqual(detail_result["recipe"]["instruction_sections"], RECIPE_ROW[-2])
+        self.assertIn("2 eggs", chat.calls[-1]["input"][-1]["output"])
+        self.assertNotIn("tools", chat.calls[-1])
+        self.assertEqual(chat.calls[-1]["instructions"], query_module.ANSWER_SYSTEM_PROMPT)
+        self.assertEqual(len(chat.calls), 2)
+        self.assertEqual(history[-2:], [
+            {"role": "user", "content": "Tell me about Steamed Eggs"},
+            {"role": "assistant", "content": "Steamed Eggs use eggs and water."},
+        ])
+
+    def test_detail_returns_no_card_for_active_or_previously_shown_recipe(self):
+        for recipe_slug, history in (
+            ("steamed-eggs", []),
+            (None, [{
+                "role": "assistant",
+                "content": "Here are the options.",
+                "recipe_references": [{
+                    "title": "Steamed Eggs",
+                    "slug": "steamed-eggs",
+                }],
+            }]),
+        ):
+            with self.subTest(recipe_slug=recipe_slug, history=history):
+                _, _ = self.client_for_tools([
+                    provider_tool_call("get_recipe_detail", {"slug": "steamed-eggs"})
+                ])
+                connection = FakeConnection([], row=RECIPE_ROW[:-1])
+                result = self.execute_tools(
+                    "What ingredients does it use?",
+                    history,
+                    FakePool(connection),
+                    recipe_slug=recipe_slug,
+                )
+                self.assertEqual(result.recipe_cards, [])
+                self.assertIn("2 eggs", json.dumps(result.retrieved_context))
+
+    def test_missing_exact_detail_does_not_embed_or_search(self):
+        embedding, chat = self.client_for_tools([
+            provider_tool_call("get_recipe_detail", {"slug": "missing-recipe"})
+        ])
+        connection = FakeConnection([RECIPE_ROW], row=None)
+        database_pool = FakePool(connection)
+
+        result = self.execute_tools(
+            "Tell me about Missing Recipe",
+            [],
+            database_pool,
+        )
+
+        self.assertEqual(result.recipe_cards, [])
+        self.assertEqual(embedding.calls, [])
+        self.assertEqual(database_pool.connection_count, 1)
+        self.assertEqual(len(connection.calls), 1)
+        self.assertIn("WHERE r.slug = %s", connection.calls[0][0])
+        self.assertEqual(self.tool_results(chat)[0], {
+            "tool_name": "get_recipe_detail",
+            "slug": "missing-recipe",
+            "not_found": True,
+        })
+        self.assertIn("not_found", chat.calls[-1]["input"][-1]["output"])
+
+    def test_model_slug_is_passed_directly_to_database_lookup(self):
+        _, chat = self.client_for_tools([
+            provider_tool_call("get_recipe_detail", {"slug": "Steamed_Eggs"})
+        ])
+        database_pool = FakePool(FakeConnection([RECIPE_ROW], row=RECIPE_ROW[:-1]))
+
+        result = self.execute_tools(
+            "Tell me about Steamed Eggs",
+            [],
+            database_pool,
+        )
+
+        self.assertEqual(database_pool.connection_count, 1)
+        self.assertEqual(database_pool.connection_value.calls[0][1], ("Steamed_Eggs",))
+        self.assertEqual(result.recipe_cards, [])
+        self.assertEqual(len(chat.calls), 2)
+
+    def test_general_search_embeds_input_and_only_presents_strong_results_by_default(self):
+        rows = [
+            recipe_with_score(0.31, slug="protein-pancakes", title="Protein Pancakes"),
+            recipe_with_score(0.3, slug="egg-pancakes", title="Egg Pancakes"),
+            recipe_with_score(0.29, slug="cottage-cheese-pancakes", title="Cottage Cheese Pancakes"),
+        ]
+        embedding, chat = self.client_for_tools([
+            provider_tool_call("get_recipes", {"input": "high protein pancakes"})
+        ])
+        connection = FakeConnection(rows)
+
+        result = self.execute_tools(
+            "Find high protein pancakes",
+            [],
+            FakePool(connection),
+        )
+
+        self.assertEqual(embedding.calls[0]["input"], "high protein pancakes")
+        self.assertEqual(len(connection.calls), 1)
+        sql, params = connection.calls[0]
+        self.assertNotIn("scored_recipes.similarity_score >=", sql)
+        self.assertEqual(params[-1], DEFAULT_RECIPE_LIMIT)
+        self.assertEqual([card["slug"] for card in result.recipe_cards], ["protein-pancakes"])
+        search_result = self.tool_results(chat)[0]
+        self.assertTrue(search_result["found_suitable_match"])
+        self.assertEqual(search_result["matches"][0]["match_strength"], "strong")
+        model_context = chat.calls[-1]["input"][-1]["output"]
+        self.assertNotIn("ingredient_sections", model_context)
+        self.assertNotIn("instruction_sections", model_context)
+        self.assertNotIn("embedding", model_context)
+        self.assertNotIn("source_url", model_context)
+
+    def test_explicit_count_fills_short_strong_set_with_weak_matches(self):
+        rows = [
+            recipe_with_score(0.31, slug="protein-pancakes", title="Protein Pancakes"),
+            recipe_with_score(0.3, slug="egg-pancakes", title="Egg Pancakes"),
+            recipe_with_score(0.29, slug="cottage-cheese-pancakes", title="Cottage Cheese Pancakes"),
+        ]
+        _, chat = self.client_for_tools([
+            provider_tool_call("get_recipes", {
+                "input": "high protein pancakes",
+                "limit": 3,
+            })
+        ])
+        connection = FakeConnection(rows)
+
+        result = self.execute_tools("Show me 3 pancake recipes", [], FakePool(connection))
+
+        self.assertEqual([card["slug"] for card in result.recipe_cards], [
+            "protein-pancakes",
+            "egg-pancakes",
+            "cottage-cheese-pancakes",
+        ])
+        matches = self.tool_results(chat)[0]["matches"]
+        self.assertEqual([item["match_strength"] for item in matches], [
+            "strong", "weak", "weak",
+        ])
+        self.assertIn("imperfect", query_module.ANSWER_SYSTEM_PROMPT.lower())
+
+    def test_exact_threshold_is_weak_and_no_strong_results_still_get_cards(self):
+        rows = [
+            recipe_with_score(0.3, slug="egg-pancakes", title="Egg Pancakes"),
+            recipe_with_score(0.29, slug="cottage-cheese-pancakes", title="Cottage Cheese Pancakes"),
+        ]
+        _, chat = self.client_for_tools([
+            provider_tool_call("get_recipes", {"input": "pancakes"})
+        ])
+
+        result = self.execute_tools(
+            "Find pancake recipes",
+            [],
+            FakePool(FakeConnection(rows)),
+        )
+
+        self.assertEqual(len(result.recipe_cards), 2)
+        search_result = self.tool_results(chat)[0]
+        self.assertFalse(search_result["found_suitable_match"])
+        self.assertEqual(
+            [item["match_strength"] for item in search_result["matches"]],
+            ["weak", "weak"],
+        )
+
+    def test_limit_ten_and_empty_search_results_are_handled_in_one_query(self):
+        _, chat = self.client_for_tools([
+            provider_tool_call("get_recipes", {"input": "breakfast", "limit": 10})
+        ])
+        connection = FakeConnection([])
+
+        result = self.execute_tools("Show 10 breakfast recipes", [], FakePool(connection))
+
+        self.assertEqual(result.recipe_cards, [])
+        self.assertEqual(len(connection.calls), 1)
+        self.assertEqual(connection.calls[0][1][-1], 10)
+        self.assertEqual(self.tool_results(chat)[0]["matches"], [])
+
+    def test_anchor_search_uses_stored_vector_and_excludes_anchor(self):
+        candidate = recipe_with_score(0.4, slug="egg-custard", title="Egg Custard")
+        _, chat = self.client_for_tools([
+            provider_tool_call("get_recipes", {
+                "input": "recipes like these eggs",
+                "similar_to_slug": "steamed-eggs",
+                "limit": 2,
+            })
+        ], embedding=FakeEmbeddingClient(
+            [0.1] * EMBEDDING_DIMENSIONS,
+            error=RuntimeError("anchored search must not embed"),
+        ))
+        connection = FakeConnection([candidate], row=ANCHOR_ROW)
+        database_pool = FakePool(connection)
+
+        result = self.execute_tools(
+            "Find recipes similar to Steamed Eggs",
+            [],
+            database_pool,
+        )
+
+        self.assertEqual(len(connection.calls), 2)
+        self.assertIn("WHERE r.slug = %s", connection.calls[0][0])
+        self.assertNotIn("ingredient_sections", connection.calls[0][0])
+        self.assertIn("scored_recipes.slug <> %s", connection.calls[1][0])
+        self.assertNotIn("scored_recipes.similarity_score >=", connection.calls[1][0])
+        self.assertEqual(connection.calls[1][1][0], [0.2] * EMBEDDING_DIMENSIONS)
+        self.assertEqual(connection.calls[1][1][-2:], ("steamed-eggs", 2))
+        self.assertEqual(result.recipe_cards[0]["slug"], "egg-custard")
+        tool_result = self.tool_results(chat)[0]
+        self.assertEqual(tool_result["anchor_title"], "Steamed Eggs")
+        self.assertNotIn("embedding", json.dumps(tool_result))
+        self.assertNotIn("ingredient_sections", json.dumps(tool_result))
+
+    def test_combined_detail_and_search_calls_precede_one_answer_and_never_write(self):
+        calls = [
+            provider_tool_call("get_recipe_detail", {"slug": "steamed-eggs"}, "call-detail"),
+            provider_tool_call("get_recipes", {
+                "input": "breakfast eggs",
+                "limit": 2,
+            }, "call-search"),
+        ]
+        reasoning_item = {"type": "reasoning", "id": "rs_test", "summary": []}
+        _, chat = self.client_for_tools(calls, response_output_items=[reasoning_item])
+        connection = FakeConnection(
+            [recipe_with_score(0.42, slug="egg-custard", title="Egg Custard")],
+            row=RECIPE_ROW[:-1],
+        )
+        database_pool = FakePool(connection)
+
+        result = self.execute_tools(
+            "Tell me about Steamed Eggs and find recipes similar to it",
+            [],
+            database_pool,
+        )
+
+        self.assertEqual(len(chat.calls), 2)
+        self.assertEqual(chat.calls[0]["tool_choice"], "auto")
+        self.assertNotIn("tools", chat.calls[1])
+        self.assertIn(reasoning_item, chat.calls[1]["input"])
+        self.assertTrue(any(
+            getattr(item, "call_id", None) == "call-detail"
+            for item in chat.calls[1]["input"]
+        ))
+        self.assertEqual(
+            sum(
+                item.get("type") == "function_call_output"
+                for item in chat.calls[1]["input"]
+                if isinstance(item, dict)
+            ),
+            2,
+        )
+        self.assertEqual([card["slug"] for card in result.recipe_cards], [
+            "egg-custard",
+        ])
+        self.assertEqual(result.recipe_cards[0]["similarity_score"], 0.42)
+        self.assertTrue(all(
+            sql.lstrip().upper().startswith("SELECT")
+            for sql, _ in connection.calls
+        ))
+
 class RecipeDatabaseTests(QueryTestCase):
+    def test_slug_lookup_can_include_compact_similarity_fields_and_stored_embedding(self):
+        connection = FakeConnection([], row=ANCHOR_ROW)
+        anchor = recipe_repository.get_recipe_by_slug(
+            connection,
+            "steamed-eggs",
+            include_embedding=True,
+        )
+
+        self.assertEqual(anchor["slug"], "steamed-eggs")
+        self.assertEqual(anchor["title"], "Steamed Eggs")
+        self.assertEqual(anchor["embedding"], [0.2] * EMBEDDING_DIMENSIONS)
+        self.assertEqual(anchor["protein"], 14)
+        self.assertNotIn("ingredient_sections", anchor)
+        self.assertNotIn("instruction_sections", anchor)
+        sql, params = connection.calls[0]
+        self.assertIn("WHERE r.slug = %s", sql)
+        self.assertIn("r.embedding::real[] AS embedding", sql)
+        self.assertNotIn("steamed-eggs", sql)
+        self.assertNotIn("ingredient_sections", sql)
+        self.assertNotIn("instruction_sections", sql)
+        self.assertEqual(params, ("steamed-eggs",))
+
+    def test_slug_lookup_returns_none_for_missing_similarity_anchor(self):
+        self.assertIsNone(recipe_repository.get_recipe_by_slug(
+            FakeConnection([], row=None),
+            "missing-recipe",
+            include_embedding=True,
+        ))
+
+    def test_chat_search_can_skip_threshold_and_exclude_its_anchor(self):
+        parameters = inspect.signature(find_similar_recipes).parameters
+        self.assertIn("minimum_similarity", parameters)
+        self.assertIn("exclude_slug", parameters)
+        if "minimum_similarity" not in parameters or "exclude_slug" not in parameters:
+            return
+
+        vector = [0.1] * EMBEDDING_DIMENSIONS
+        connection = FakeConnection([RECIPE_ROW])
+        results = find_similar_recipes(
+            connection,
+            vector,
+            2,
+            minimum_similarity=None,
+            exclude_slug="anchor-recipe",
+        )
+
+        self.assertEqual(results[0]["slug"], "steamed-eggs")
+        sql, params = connection.calls[0]
+        self.assertIn("scored_recipes.slug <> %s", sql)
+        self.assertNotIn("scored_recipes.similarity_score >=", sql)
+        self.assertIn("ORDER BY scored_recipes.similarity_score DESC", sql)
+        self.assertIn("LIMIT %s", sql)
+        self.assertEqual(params, (vector, "anchor-recipe", 2))
+
     def test_find_similar_recipes_returns_full_context_and_score(self):
         connection = FakeConnection([RECIPE_ROW])
 
-        results = find_similar_recipes(connection, [0.1] * 1536, 2)
+        results = find_similar_recipes(connection, [0.1] * EMBEDDING_DIMENSIONS, 2)
 
         self.assertEqual(results[0]["slug"], "steamed-eggs")
         self.assertEqual(results[0]["similarity_score"], 0.91)
-        self.assertEqual(results[0]["ingredients"], ["2 eggs", "1 cup water"])
-        self.assertEqual(results[0]["ingredient_groups"][0]["group_name"], "Egg mixture")
-        self.assertEqual(
-            results[0]["instructions"],
-            ["Whisk the eggs.", "Steam until set."],
-        )
+        self.assertEqual(results[0]["ingredient_sections"], RECIPE_ROW[-3])
+        self.assertEqual(results[0]["instruction_sections"], RECIPE_ROW[-2])
+        self.assertNotIn("ingredients", results[0])
+        self.assertNotIn("instructions", results[0])
+        self.assertNotIn("ingredient_groups", results[0])
+        self.assertNotIn("instruction_groups", results[0])
         self.assertNotIn("id", results[0])
         self.assertNotIn("embedding", results[0])
 
@@ -155,7 +675,11 @@ class RecipeDatabaseTests(QueryTestCase):
         self.assertIn("embedding IS NOT NULL", sql)
         self.assertIn("ORDER BY scored_recipes.similarity_score DESC", sql)
         self.assertIn("LIMIT %s", sql)
-        self.assertEqual(params[0], [0.1] * 1536)
+        self.assertIn("r.ingredient_sections", sql)
+        self.assertIn("r.instruction_sections", sql)
+        self.assertNotIn("recipe_ingredients", sql)
+        self.assertNotIn("recipe_steps", sql)
+        self.assertEqual(params[0], [0.1] * EMBEDDING_DIMENSIONS)
         self.assertEqual(params[-2:], (DEFAULT_SIMILARITY_THRESHOLD, 2))
 
     def test_find_similar_recipes_rejects_invalid_limits_before_query(self):
@@ -164,37 +688,14 @@ class RecipeDatabaseTests(QueryTestCase):
                 connection = FakeConnection([RECIPE_ROW])
 
                 with self.assertRaisesRegex(ValueError, "positive integer"):
-                    find_similar_recipes(connection, [0.1] * 1536, limit)
+                    find_similar_recipes(connection, [0.1] * EMBEDDING_DIMENSIONS, limit)
 
                 self.assertEqual(connection.calls, [])
 
 
-class QueryRetrievalTests(QueryTestCase):
-    def test_build_recipe_cards_uses_condensed_fields_and_score(self):
-        cards = build_recipe_cards([{
-            "slug": "steamed-eggs",
-            "title": "Steamed Eggs",
-            "description": "Silky savory eggs.",
-            "category": ["breakfast"],
-            "tags": ["eggs"],
-            "cuisine": "Chinese",
-            "total_time_minutes": 20,
-            "servings": 2,
-            "calories": 180,
-            "protein": 14,
-            "carbs": 4,
-            "fat": 10,
-            "source_label": "Crumbs",
-            "source_url": None,
-            "notes": "Steam gently.",
-            "ingredients": ["2 eggs", "1 cup water"],
-            "instructions": ["Whisk the eggs.", "Steam until set."],
-            "ingredient_groups": [],
-            "instruction_groups": [],
-            "similarity_score": 0.91,
-        }])
-
-        self.assertEqual(cards, [{
+class QueryCardTests(QueryTestCase):
+    def test_build_recipe_cards_keeps_scores_and_allows_missing_scores(self):
+        common = {
             "slug": "steamed-eggs",
             "title": "Steamed Eggs",
             "category": ["breakfast"],
@@ -204,315 +705,17 @@ class QueryRetrievalTests(QueryTestCase):
             "protein": 14,
             "carbs": 4,
             "fat": 10,
-            "similarity_score": 0.91,
-        }])
+        }
 
-    def test_default_limit_is_three_and_embedding_precedes_connection(self):
-        connection = FakeConnection([RECIPE_ROW])
-        database_pool = FakePool(connection)
-        embedding_client = FakeEmbeddingClient(
-            [0.1] * 1536,
-            on_embed=lambda: self.assertEqual(database_pool.connection_count, 0),
-        )
-        chat = FakeChatClient(
-            on_chat=lambda: self.assertFalse(database_pool.active),
-        )
-        client = self.use_client(SimpleNamespace(
-            embeddings=embedding_client.embeddings,
-            chat=chat,
-        ))
-
-        result = process_query_result(
-            "What can I make with eggs?",
-            [],
-            database_pool=database_pool,
-        )
-
-        self.assertEqual(result.recipe_cards[0]["title"], "Steamed Eggs")
-        self.assertEqual(embedding_client.calls[0]["input"], "What can I make with eggs?")
-        self.assertEqual(
-            connection.calls[0][1][-2:],
-            (DEFAULT_SIMILARITY_THRESHOLD, 3),
-        )
-        self.assertEqual(database_pool.connection_count, 1)
-
-    def test_explicit_limit_is_passed_unchanged(self):
-        connection = FakeConnection([RECIPE_ROW])
-        client = self.use_client(SimpleNamespace(
-            embeddings=FakeEmbeddingClient([0.1] * 1536).embeddings,
-            chat=FakeChatClient(),
-        ))
-
-        process_query_result(
-            "egg recipes",
-            [],
-            database_pool=FakePool(connection),
-            limit=5,
-        )
-
-        self.assertEqual(
-            connection.calls[0][1][-2:],
-            (DEFAULT_SIMILARITY_THRESHOLD, 5),
-        )
-
-    def test_process_query_result_uses_database_threshold(self):
-        connection = FakeConnection([RECIPE_ROW])
-        database_pool = FakePool(connection)
-        client = self.use_client(SimpleNamespace(
-            embeddings=FakeEmbeddingClient([0.1] * 1536).embeddings,
-            chat=FakeChatClient(),
-        ))
-
-        result = process_query_result(
-            "What can I make with eggs?",
-            [],
-            database_pool=database_pool,
-            limit=1,
-        )
-
-        self.assertEqual(result.answer, "Try the steamed eggs.")
-        self.assertEqual(result.recipe_cards[0]["slug"], "steamed-eggs")
-        self.assertEqual(
-            connection.calls[0][1][-2:],
-            (DEFAULT_SIMILARITY_THRESHOLD, 1),
-        )
-
-class QueryConversationTests(QueryTestCase):
-    def test_process_query_sends_guardrails_history_and_recipe_context(self):
-        connection = FakeConnection([RECIPE_ROW])
-        embedding_client = FakeEmbeddingClient([0.1] * 1536)
-        database_pool = FakePool(connection)
-        chat = FakeChatClient(
-            on_chat=lambda: self.assertFalse(database_pool.active),
-        )
-        client = self.use_client(SimpleNamespace(
-            embeddings=embedding_client.embeddings,
-            chat=chat,
-        ))
-        history = [
-            {"role": "user", "content": "I want a quick breakfast."},
-            {"role": "assistant", "content": "Steamed eggs may work."},
-        ]
-
-        answer = process_query(
-            "What are the ingredients?",
-            history,
-            database_pool=database_pool,
-            limit=1,
-        )
-
-        self.assertEqual(answer, "Try the steamed eggs.")
-        messages = chat.calls[0]["messages"]
-        self.assertEqual(messages[0]["role"], "system")
-        system_prompt = messages[0]["content"].lower()
-        self.assertIn("do not invent", system_prompt)
-        self.assertIn("title", system_prompt)
-        self.assertIn("short summary", system_prompt)
-        self.assertIn("why it fits", system_prompt)
-        self.assertIn("full ingredients", system_prompt)
-        self.assertIn("explicitly asks", system_prompt)
-        self.assertIn("unrelated to cooking or recipes", system_prompt)
-        self.assertIn("short prose paragraph", system_prompt)
-        self.assertIn("ordered list", system_prompt)
-        self.assertIn("do not use bullet points", system_prompt)
-        self.assertIn("selected recipe walkthrough", system_prompt)
-        self.assertIn("ingredients and amounts used in that step", system_prompt)
-        self.assertIn("do not copy the stored instructions verbatim", system_prompt)
-        self.assertIn("do not repeat ingredient names or amounts in the step", system_prompt)
-        self.assertEqual(messages[1:3], history[:2])
-        self.assertIn("Steamed Eggs", messages[-1]["content"])
-        self.assertIn("2 eggs", messages[-1]["content"])
-        self.assertIn('"instructions"', messages[-1]["content"])
-        self.assertIn('"group_name": "Egg mixture"', messages[-1]["content"])
-        self.assertNotIn('"similarity_score"', messages[-1]["content"])
-        self.assertNotIn("0.1", messages[-1]["content"])
-        self.assertEqual(history[-2:], [
-            {"role": "user", "content": "What are the ingredients?"},
-            {"role": "assistant", "content": "Try the steamed eggs."},
+        cards = build_recipe_cards([
+            {**common, "similarity_score": 0.91},
+            {**common, "slug": "without-score", "similarity_score": None},
         ])
-        self.assertNotIn("Retrieved recipe context", history[-2]["content"])
 
-    def test_failed_embedding_does_not_append_messages(self):
-        connection = FakeConnection([RECIPE_ROW])
-        embedding_client = FakeEmbeddingClient(
-            [0.1] * 1536,
-            error=RuntimeError("embedding unavailable"),
-        )
-        client = self.use_client(SimpleNamespace(embeddings=embedding_client.embeddings))
-        history = [{"role": "user", "content": "Earlier question"}]
-
-        with self.assertRaisesRegex(RuntimeError, "embedding unavailable"):
-            process_query(
-                "New question",
-                history,
-                database_pool=FakePool(connection),
-            )
-
-        self.assertEqual(history, [{"role": "user", "content": "Earlier question"}])
-
-    def test_failed_llm_call_does_not_append_messages(self):
-        connection = FakeConnection([RECIPE_ROW])
-        embedding_client = FakeEmbeddingClient([0.1] * 1536)
-        chat = FakeChatClient(error=RuntimeError("LLM unavailable"))
-        client = self.use_client(SimpleNamespace(
-            embeddings=embedding_client.embeddings,
-            chat=chat,
-        ))
-        history = [{"role": "user", "content": "Earlier question"}]
-
-        with self.assertRaisesRegex(RuntimeError, "LLM unavailable"):
-            process_query(
-                "New question",
-                history,
-                database_pool=FakePool(connection),
-            )
-
-        self.assertEqual(history, [{"role": "user", "content": "Earlier question"}])
-
-    def test_malformed_llm_response_does_not_append_messages(self):
-        connection = FakeConnection([RECIPE_ROW])
-        embedding_client = FakeEmbeddingClient([0.1] * 1536)
-        chat = FakeChatClient(choices=[])
-        client = self.use_client(SimpleNamespace(
-            embeddings=embedding_client.embeddings,
-            chat=chat,
-        ))
-        history = []
-
-        with self.assertRaisesRegex(QueryGenerationError, "at least one chat response"):
-            process_query(
-                "New question",
-                history,
-                database_pool=FakePool(connection),
-            )
-
-        self.assertEqual(history, [])
-
-    def test_truncated_response_is_rejected_without_changing_history(self):
-        chat = FakeChatClient(choices=[SimpleNamespace(
-            finish_reason="length",
-            message=SimpleNamespace(content="1. Prepare the sauce and"),
-        )])
-        client = self.use_client(SimpleNamespace(
-            embeddings=FakeEmbeddingClient([0.1] * 1536),
-            chat=chat,
-        ))
-        history = [{"role": "user", "content": "I want sukiyaki."}]
-        original_history = list(history)
-
-        with self.assertRaisesRegex(QueryGenerationError, "cut off before completion"):
-            process_query(
-                "Give me the complete recipe",
-                history,
-                database_pool=FakePool(FakeConnection([RECIPE_ROW])),
-            )
-
-        self.assertEqual(history, original_history)
-
-    def test_empty_retrieval_context_is_explicit(self):
-        connection = FakeConnection([])
-        embedding_client = FakeEmbeddingClient([0.1] * 1536)
-        chat = FakeChatClient()
-        client = self.use_client(SimpleNamespace(
-            embeddings=embedding_client.embeddings,
-            chat=chat,
-        ))
-
-        process_query(
-            "Something unavailable",
-            [],
-            database_pool=FakePool(connection),
-        )
-
-        self.assertIn(
-            "No matching recipes were found.",
-            chat.calls[0]["messages"][-1]["content"],
-        )
-
-    def test_unrelated_question_uses_retrieval_and_prompt_guardrail(self):
-        embedding_client = FakeEmbeddingClient([0.1] * 1536)
-        chat = FakeChatClient(answer="I can help with recipes and cooking questions.")
-        client = self.use_client(SimpleNamespace(
-            embeddings=embedding_client.embeddings,
-            chat=chat,
-        ))
-        database_pool = FakePool(FakeConnection([RECIPE_ROW]))
-
-        result = process_query_result(
-            "What is the capital of France?",
-            [],
-            database_pool=database_pool,
-        )
-
-        self.assertEqual(result.answer, "I can help with recipes and cooking questions.")
-        self.assertEqual(result.recipe_cards[0]["slug"], "steamed-eggs")
-        self.assertEqual(len(embedding_client.calls), 1)
-        self.assertEqual(database_pool.connection_count, 1)
-        system_prompt = chat.calls[0]["messages"][0]["content"].lower()
-        self.assertIn("unrelated to cooking or recipes", system_prompt)
-        self.assertIn("invite a recipe-related question", system_prompt)
-        self.assertNotIn("greeting", system_prompt)
-
-    def test_selected_recipe_context_uses_direct_lookup_without_similarity_search(self):
-        connection = FakeConnection([RECIPE_ROW], row=RECIPE_ROW[:-1])
-        embedding_client = FakeEmbeddingClient(
-            [0.1] * 1536,
-            on_embed=lambda: self.fail(
-                "recipe-specific queries should not generate an embedding"
-            ),
-        )
-        chat = FakeChatClient()
-        client = self.use_client(SimpleNamespace(
-            embeddings=embedding_client.embeddings,
-            chat=chat,
-        ))
-        database_pool = FakePool(connection)
-
-        result = process_query_result(
-            "What goes into the egg mixture?",
-            [],
-            database_pool=database_pool,
-            limit=1,
-            recipe_slug="steamed-eggs",
-        )
-
-        self.assertEqual(result.answer, "Try the steamed eggs.")
-        context = chat.calls[0]["messages"][-1]["content"]
-        self.assertIn('"ingredients": [\n      "2 eggs"', context)
-        self.assertIn('"instructions": [\n      "Whisk the eggs."', context)
-        self.assertIn('"group_name": "Egg mixture"', context)
-        self.assertEqual(context.count('"slug": "steamed-eggs"'), 1)
-        self.assertEqual(result.recipe_cards, [])
-        self.assertEqual(embedding_client.calls, [])
-        self.assertEqual(database_pool.connection_count, 1)
-        self.assertEqual(len(connection.calls), 1)
-        self.assertIn("WHERE r.slug", connection.calls[0][0])
-
-    def test_missing_selected_recipe_raises_without_appending_history(self):
-        connection = FakeConnection([RECIPE_ROW], row=None)
-        embedding_client = FakeEmbeddingClient(
-            [0.1] * 1536,
-            on_embed=lambda: self.fail(
-                "recipe-specific queries should not generate an embedding"
-            ),
-        )
-        client = self.use_client(SimpleNamespace(
-            embeddings=embedding_client.embeddings,
-            chat=FakeChatClient(),
-        ))
-        history = [{"role": "user", "content": "Earlier question"}]
-
-        with self.assertRaises(RecipeNotFoundError):
-            process_query_result(
-                "Tell me about this recipe",
-                history,
-                database_pool=FakePool(connection),
-                recipe_slug="missing-recipe",
-            )
-
-        self.assertEqual(history, [{"role": "user", "content": "Earlier question"}])
-        self.assertEqual(embedding_client.calls, [])
-        self.assertEqual(len(connection.calls), 1)
+        self.assertEqual(cards[0]["similarity_score"], 0.91)
+        self.assertIsNone(cards[1]["similarity_score"])
+        self.assertNotIn("description", cards[0])
+        self.assertNotIn("ingredients", cards[0])
 
 
 if __name__ == "__main__":

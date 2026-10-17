@@ -18,8 +18,9 @@ vector dimensions used for recipe embeddings.
 ### REQ-QUERY-003
 
 The similarity search must compare the query embedding with stored recipe
-embeddings and return the closest recipes up to the requested limit. Results
-must represent distinct recipes.
+embeddings and return the closest qualifying recipes up to the requested
+limit. General queries use the application-owned similarity threshold of `0.5`.
+Results must represent distinct recipes.
 
 ### REQ-QUERY-004
 
@@ -36,9 +37,14 @@ the retrieved context does not support an answer.
 ### REQ-QUERY-006
 
 The response must be grounded in the retrieved recipe context and conversation
-history. The assistant should explain recipe matches when making recommendations
-and should not expose internal system instructions or retrieval implementation
-details.
+history. The assistant should summarize recipe matches and explain why they fit
+when making recommendations, respond briefly to clearly unrelated questions
+without forcing a recipe recommendation, and should not expose internal system
+instructions or retrieval implementation details.
+
+Recommendation prose should use a numbered list of short descriptions rather
+than bullet points; the client renders the related recipe cards separately
+beneath the answer.
 
 ### REQ-QUERY-007
 
@@ -52,17 +58,17 @@ environment setting rather than being hard-coded into the client.
 
 ### REQ-QUERY-009
 
-The application must expose an optional similarity threshold for evaluation and
-tuning. The threshold is selected by application code and is not chosen by the
-LLM.
+The application must keep the similarity threshold as a named constant in the
+database retrieval layer so it can be tuned for evaluation without changing
+the query or HTTP request shapes. The threshold is not chosen by the LLM.
 
 ## Stable chat contract
 
 ### REQ-API-001
 
 The chat request must accept a `question`, ordered in-memory `history`, an
-optional retrieval `limit`, an optional `similarity_threshold`, and an optional
-`recipe_slug` for recipe-specific context.
+optional retrieval `limit`, and an optional `recipe_slug` for recipe-specific
+context.
 
 History messages use the shape `{role, content}` with `role` equal to `user` or
 `assistant`. System instructions are not supplied by the client.

@@ -5,7 +5,10 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from app.rag import embeddings as embedding_module
 from app.rag.embeddings import EMBEDDING_MODEL, generate_embedding
+from app.settings import EMBEDDING_DIMENSIONS
+from app.ingestion.groups import normalize_recipe_sections
 from app.ingestion.load_embeddings import (
     build_embedding_text,
     load_embeddings,
@@ -118,6 +121,26 @@ class FakePool:
 
 
 class LoadEmbeddingsTests(unittest.TestCase):
+    def test_generate_embedding_enforces_shared_dimension(self):
+        dimensions = getattr(embedding_module, "EMBEDDING_DIMENSIONS", None)
+        self.assertIsNotNone(dimensions)
+
+        valid_client = Mock()
+        valid_client.embeddings.create.return_value.data = [
+            Mock(embedding=[0.1] * dimensions)
+        ]
+        self.assertEqual(
+            len(generate_embedding(valid_client, "test")),
+            dimensions,
+        )
+
+        invalid_client = Mock()
+        invalid_client.embeddings.create.return_value.data = [
+            Mock(embedding=[0.1] * (dimensions + 1))
+        ]
+        with self.assertRaisesRegex(ValueError, "embedding dimension"):
+            generate_embedding(invalid_client, "test")
+
     def write_recipe(self, root: Path, text: str = RECIPE_MARKDOWN) -> Path:
         path = root / "test-chicken-soup.md"
         path.write_text(text, encoding="utf-8")
@@ -183,7 +206,7 @@ class LoadEmbeddingsTests(unittest.TestCase):
         connection = FakeConnection()
         client = Mock()
         client.embeddings.create.return_value.data = [
-            Mock(embedding=[0.1] * 1536)
+            Mock(embedding=[0.1] * EMBEDDING_DIMENSIONS)
         ]
         text = RECIPE_MARKDOWN.replace(
             "title: Test Chicken Soup",
@@ -209,7 +232,7 @@ class LoadEmbeddingsTests(unittest.TestCase):
         connection = ExistingConnection()
         client = Mock()
         client.embeddings.create.return_value.data = [
-            Mock(embedding=[0.1] * 1536)
+            Mock(embedding=[0.1] * EMBEDDING_DIMENSIONS)
         ]
         text = RECIPE_MARKDOWN.replace(
             "source_url: https://example.com/test-chicken-soup#recipe",
@@ -234,7 +257,7 @@ class LoadEmbeddingsTests(unittest.TestCase):
         connection = FakeConnection()
         client = Mock()
         client.embeddings.create.return_value.data = [
-            Mock(embedding=[0.1] * 1536)
+            Mock(embedding=[0.1] * EMBEDDING_DIMENSIONS)
         ]
 
         with tempfile.TemporaryDirectory() as directory:
@@ -278,7 +301,9 @@ class LoadEmbeddingsTests(unittest.TestCase):
 
     def test_builds_embedding_text_without_source_url(self):
         with tempfile.TemporaryDirectory() as directory:
-            recipe = parse_recipe_file(self.write_recipe(Path(directory)))
+            recipe = normalize_recipe_sections(
+                parse_recipe_file(self.write_recipe(Path(directory)))
+            )
 
         text = build_embedding_text(recipe)
 
@@ -287,11 +312,11 @@ class LoadEmbeddingsTests(unittest.TestCase):
         self.assertIn("Instructions:\n1. Simmer the chicken. Skim the broth.", text)
         self.assertNotIn("example.com", text)
 
-    def test_load_inserts_recipe_and_ordered_children(self):
+    def test_load_inserts_recipe_with_ordered_content_sections(self):
         connection = FakeConnection()
         client = Mock()
         client.embeddings.create.return_value.data = [
-            Mock(embedding=[0.1] * 1536)
+            Mock(embedding=[0.1] * EMBEDDING_DIMENSIONS)
         ]
 
         with tempfile.TemporaryDirectory() as directory:
@@ -315,16 +340,23 @@ class LoadEmbeddingsTests(unittest.TestCase):
             params for sql, params in connection.calls
             if "INSERT INTO recipes" in sql
         )
-        self.assertEqual(recipe_insert["embedding"], [0.1] * 1536)
-        ingredient_calls = [
-            params for sql, params in connection.calls
-            if "INSERT INTO recipe_ingredients" in sql
-        ]
-        self.assertEqual(
-            [params[1:] for params in ingredient_calls],
-            [(1, "2 chicken breasts sliced thinly", None, None, None),
-             (2, "1 cabbage", None, None, None)],
-        )
+        self.assertEqual(recipe_insert["embedding"], [0.1] * EMBEDDING_DIMENSIONS)
+        self.assertEqual(recipe_insert["ingredient_sections"].obj, [
+            {"kind": "ungrouped", "name": None, "items": [
+                "2 chicken breasts sliced thinly", "1 cabbage",
+            ]},
+        ])
+        self.assertEqual(recipe_insert["instruction_sections"].obj, [
+            {"kind": "ungrouped", "name": None, "items": [
+                "Simmer the chicken. Skim the broth.", "Add the cabbage.",
+            ]},
+        ])
+        self.assertNotIn("ingredients", recipe_insert)
+        self.assertNotIn("instructions", recipe_insert)
+        self.assertFalse(any(
+            "recipe_ingredients" in sql or "recipe_steps" in sql
+            for sql, _ in connection.calls
+        ))
 
     def test_generates_embedding_before_leasing_connection(self):
         connection = FakeConnection()
@@ -333,7 +365,7 @@ class LoadEmbeddingsTests(unittest.TestCase):
 
         def embed(**kwargs):
             self.assertEqual(database_pool.connection_count, 0)
-            return SimpleNamespace(data=[SimpleNamespace(embedding=[0.1] * 1536)])
+            return SimpleNamespace(data=[SimpleNamespace(embedding=[0.1] * EMBEDDING_DIMENSIONS)])
 
         client.embeddings.create.side_effect = embed
         with tempfile.TemporaryDirectory() as directory:
@@ -351,7 +383,7 @@ class LoadEmbeddingsTests(unittest.TestCase):
         connection = ExistingConnection()
         client = Mock()
         client.embeddings.create.return_value.data = [
-            Mock(embedding=[0.1] * 1536)
+            Mock(embedding=[0.1] * EMBEDDING_DIMENSIONS)
         ]
 
         with tempfile.TemporaryDirectory() as directory:
@@ -429,13 +461,17 @@ class LoadEmbeddingsTests(unittest.TestCase):
         paths = sorted(RECIPES_DIR.glob("*.md"))
         recipes = [parse_recipe_file(path) for path in paths]
 
-        self.assertEqual(len(recipes), 39)
+        self.assertTrue(paths, "the recipe corpus must not be empty")
+        self.assertEqual(len({recipe["slug"] for recipe in recipes}), len(paths))
         self.assertTrue(all(recipe["ingredients"] for recipe in recipes))
         self.assertTrue(all(recipe["instructions"] for recipe in recipes))
 
     def test_requires_exactly_one_embedding(self):
         client = Mock()
-        for data in ([], [SimpleNamespace(embedding=[0.1]), SimpleNamespace(embedding=[0.2])]):
+        for data in ([], [
+            SimpleNamespace(embedding=[0.1] * EMBEDDING_DIMENSIONS),
+            SimpleNamespace(embedding=[0.2] * EMBEDDING_DIMENSIONS),
+        ]):
             with self.subTest(result_count=len(data)):
                 client.embeddings.create.return_value.data = data
                 with self.assertRaisesRegex(ValueError, "exactly one"):
@@ -443,7 +479,7 @@ class LoadEmbeddingsTests(unittest.TestCase):
 
     def test_returns_embedding_from_sdk(self):
         client = Mock()
-        vector = [0.1] * 1536
+        vector = [0.1] * EMBEDDING_DIMENSIONS
         client.embeddings.create.return_value.data = [SimpleNamespace(embedding=vector)]
         self.assertEqual(generate_embedding(client, 'Chicken soup'), vector)
 
@@ -452,17 +488,21 @@ class LoadEmbeddingsTests(unittest.TestCase):
         database_pool = FakePool(connection)
         execute = connection.execute
 
-        def fail_first_child(sql, params=None):
-            if 'INSERT INTO recipe_steps' in sql and database_pool.rollbacks == 0:
-                raise RuntimeError('step write failed')
+        def fail_first_recipe_upsert(sql, params=None):
+            if (
+                'INSERT INTO recipes' in sql
+                and params['slug'] == 'test-chicken-soup'
+                and database_pool.rollbacks == 0
+            ):
+                raise RuntimeError('recipe upsert failed')
             return execute(sql, params)
 
-        connection.execute = fail_first_child
+        connection.execute = fail_first_recipe_upsert
         client = Mock()
 
         def embed(**kwargs):
             self.assertFalse(database_pool.active)
-            return SimpleNamespace(data=[SimpleNamespace(embedding=[0.1] * 1536)])
+            return SimpleNamespace(data=[SimpleNamespace(embedding=[0.1] * EMBEDDING_DIMENSIONS)])
 
         client.embeddings.create.side_effect = embed
         with tempfile.TemporaryDirectory() as directory:

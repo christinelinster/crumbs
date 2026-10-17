@@ -8,6 +8,8 @@ def generate_embedding(client, text: str) -> list[float]:
         model=EMBEDDING_MODEL,
         input=text,
     )
+    if len(response.data) != 1:
+        raise ValueError("expected exactly one embedding")
     embedding = response.data[0].embedding
     if len(embedding) != EMBEDDING_DIMENSIONS:
         raise ValueError(

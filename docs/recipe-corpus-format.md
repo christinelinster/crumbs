@@ -68,14 +68,28 @@ Within Ingredients and Instructions, optional `### Source group name` headings
 start a new group. Preserve source names and item order; do not infer groups.
 Keep step numbering continuous across groups. Files without headings remain valid.
 For a source group that has no name, use `### <!-- unnamed group -->`; the loader
-stores a null name with a group position. Items before the first heading are ungrouped.
-Empty groups are rejected. Group headings do not change frontmatter types or values.
+stores a group section with a null name. Items before the first heading remain
+ungrouped. Empty groups are rejected. Group headings do not change frontmatter
+types or values.
 
-The loader stores one-based `group_position` and optional `group_name` on each
-ingredient/step row, while the existing `position` remains its overall item order.
-Embedding text includes named headings. Query results retain the original string
-arrays and add `ingredient_groups` / `instruction_groups`, with per-item
-`position`, `group_position`, and `group_name` for grouped rows.
+The parser first reads headings as raw ordered group boundaries. The loader
+normalizes that parser representation into canonical sections, then stores each
+content list as JSONB on the recipe row, for example:
+
+```json
+[
+  {"kind": "ungrouped", "name": null, "items": ["2 eggs"]},
+  {"kind": "group", "name": "For the sauce", "items": ["soy sauce", "vinegar"]}
+]
+```
+
+Every section has `kind`, `name`, and `items`. Ungrouped content uses
+`{"kind":"ungrouped","name":null,...}`; a group with no heading name uses
+`{"kind":"group","name":null,...}`. Repeated group names remain separate
+sections. Embedding text is built from normalized sections and includes named
+headings. RAG context and the recipe detail API retain sections directly. The
+API exposes `ingredient_sections` and `instruction_sections` with the same
+`kind`, `name`, and `items` fields as storage.
 
 Indented continuation lines are supported within ingredients and instructions.
 Preserve the ingredient and step order. Plain fractions such as `1/3` and Unicode
@@ -83,8 +97,7 @@ fractions such as `½` remain readable text; they are not parsed into quantities
 Use a single pair of parentheses around annotations, for example `(minced)`.
 
 Keep the original ingredient lines for display. Normalized ingredient names are
-not part of the current Markdown format: the database has a nullable name on each
-ingredient row, and the loader currently populates it with `NULL`.
+not part of the current Markdown format or database storage model.
 
 ## Nutrition curation
 

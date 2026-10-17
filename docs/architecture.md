@@ -62,12 +62,13 @@ recipe writes and retrieval before independent corpora are enabled.
 
 - The shared embedding component creates one vector for either a recipe text or
   a user question using the configured embedding model.
-- The query service coordinates conversation messages, similarity retrieval,
-  prompt construction, and the LLM request.
+- The query service asks the model to route each message, validates and runs
+  approved recipe tools, then grounds a final answer in their results.
 - Postgres stores recipes and vectors. The running application owns conversation
   history in memory.
-- The LLM receives system instructions, prior conversation messages, and the
-  selected recipe context. It does not select the retrieval limit.
+- The router receives text history and compact ordered references to previously
+  shown recipes. The model may set the recipe count only when the user requests
+  one; application settings supply the default and maximum.
 
 ## Data flow
 
@@ -80,36 +81,46 @@ sequenceDiagram
     participant DB as Postgres
     participant LLM
 
-    Bitesize->>API: POST /api/chat with question, history, limit, threshold, optional slug
+    Bitesize->>API: POST /api/chat with question, history, references, optional slug
     API->>Query: validated chat request
-    alt recipe_slug provided
-        Query->>DB: lease short-lived connection
-        Query->>DB: get recipe by slug
-        DB-->>Query: exact recipe context
-        Query-->>DB: release connection after direct lookup
-    else no recipe_slug
-        Query->>Embed: generate_embedding(question)
-        Embed-->>Query: query vector
-        Query->>DB: lease short-lived connection
-        Query->>DB: search recipes(vector, limit)
-        DB-->>Query: structured recipe context and scores
-        Query-->>DB: release connection after similarity search
+    Query->>LLM: route question with history and approved recipe tools
+    alt direct answer
+        LLM-->>Query: answer without tool call
+    else recipe tool call
+        LLM-->>Query: validated detail or discovery request
+        alt exact recipe detail
+            Query->>DB: get recipe by exact slug
+            DB-->>Query: full recipe or not-found result
+        else general recipe discovery
+            Query->>Embed: embed search input
+            Embed-->>Query: query vector
+            Query->>DB: retrieve one top-limit candidate set
+            DB-->>Query: candidates and similarity scores
+        else recipes similar to a known recipe
+            Query->>DB: get anchor metadata and stored vector
+            DB-->>Query: anchor vector and concise metadata
+            Query->>DB: retrieve candidates excluding the anchor
+            DB-->>Query: candidates and similarity scores
+        end
+        Query->>LLM: tool results with further tools disabled
+        LLM-->>Query: grounded answer
     end
-    Query->>LLM: system prompt + history + recipe context
-    LLM-->>Query: grounded answer
     Query->>Query: append history after successful answer
     Query-->>API: answer and recipe cards
     API-->>Bitesize: JSON chat response
 ```
 
-The application chooses `limit`, using `3` by default, and passes it to
-`process_query_result`. With no `recipe_slug`, the function embeds the question
-through the shared helper, leases one database connection, and uses vector
-similarity ordering against `recipes.embedding`. With a `recipe_slug`, it
-directly retrieves that exact recipe and skips embedding and similarity search.
-In both paths, the connection is released before the LLM request begins. Only
-the similarity-search path produces scored recipe cards; the selected recipe is
-already represented by the detail page.
+The routing model chooses whether to answer directly or call the validated
+`get_recipe_detail` or `get_recipes` tool. Direct answers skip embeddings and
+recipe database access. Exact detail lookups use a persisted slug and skip
+embedding generation. Discovery requests embed their search text; requests for
+recipes similar to a known recipe use its stored embedding and exclude that
+recipe. The tool count defaults to three and is capped at ten. A single
+unfiltered top-limit query supplies candidates; the application classifies
+scores strictly above the shared `0.3` threshold as strong and applies the
+weak-result policy without a second query. A final model completion writes an
+answer from concise discovery context or full detail content. Recipe cards
+always come from validated database rows.
 
 ## Persistence
 
@@ -117,8 +128,21 @@ The existing `recipes` table remains the source of recipe content and vectors.
 The query feature does not add conversation tables. The running application
 maintains an ordered in-memory history of user and assistant messages. System
 instructions remain application-controlled rather than becoming user-editable
-history. Conversation history has no database identifier and is never persisted.
-Exiting the process discards the history.
+history. Crumbs has no persistent session-history store, so exiting the process
+discards the in-memory history.
+
+Ingredients and instructions are normalized from the raw Markdown parser form
+into ordered section arrays before embedding and persistence. Every section
+has `kind`, `name`, and `items`; ungrouped sections use `name: null`. PostgreSQL
+JSONB stores these canonical sections. Repository reads, RAG prompt context,
+and recipe detail API responses retain sections. Bitesize renders section
+objects directly and flattens items locally only for ingredient highlighting.
+
+Setup connects to an already-created database and runs the canonical schema in
+one transaction. It is intended for a fresh database or one already using the
+current schema; it does not upgrade a legacy child-table database. Normal loader
+runs still re-embed and upsert each Markdown file present, and do not delete
+database recipes for absent files.
 
 For general questions, the query flow generates the query embedding before
 leasing a connection and reads the selected complete recipe context and
@@ -136,6 +160,8 @@ The system prompt defines the assistant's behavior and guardrails. Retrieved
 recipes are provided as context data, separate from the system instructions.
 In-memory conversation history provides continuity during the process lifetime
 but cannot override the system prompt or authorize the assistant to invent facts
-absent from the retrieved recipes. Recipe responses are instructed to include
-the title, source URL when available, ingredients, and numbered instructions;
-recipes without a source URL are identified as having no external link.
+absent from the retrieved recipes. General recommendation responses use a
+numbered list of short prose descriptions that explain why qualifying recipes
+fit; the client renders their recipe cards separately beneath the answer. Full ingredients,
+instructions, and source details are reserved for explicit detail requests,
+where stored Markdown headings and complete recipe content are preserved.

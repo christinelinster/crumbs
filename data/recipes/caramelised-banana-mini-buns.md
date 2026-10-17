@@ -1,6 +1,6 @@
 ---
-title: High Protein Caramelised Banana Mini Buns
-slug: high-protein-caramelised-banana-mini-buns
+title: Caramelised Banana Mini Buns
+slug: caramelised-banana-mini-buns
 description: Soft Greek-yogurt dough balls stuffed with caramelized banana and coconut sugar, baked until golden. A high-protein single-serving treat with banana-bread vibes.
 category:
 - dessert

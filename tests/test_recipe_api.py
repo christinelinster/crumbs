@@ -39,10 +39,8 @@ DETAIL_METADATA_ROW = (
 
 DETAIL_ROW = DETAIL_METADATA_ROW + (
     "Steam gently.",
-    ["2 eggs", "1 cup water"],
-    ["Whisk the eggs.", "Steam until set."],
-    [{"position": 1, "group_position": 1, "group_name": "Egg mixture"}],
-    [],
+    [{"kind": "group", "name": "Egg mixture", "items": ["2 eggs", "1 cup water"]}],
+    [{"kind": "ungrouped", "name": None, "items": ["Whisk the eggs.", "Steam until set."]}],
 )
 
 
@@ -121,22 +119,23 @@ class RecipeProjectionTests(unittest.TestCase):
         self.assertNotIn("r.description", sql)
         self.assertNotIn("embedding", sql.lower())
 
-    def test_get_recipe_by_slug_returns_complete_ordered_detail(self):
+    def test_get_recipe_by_slug_returns_canonical_sections(self):
         connection = ProjectionConnection(row=DETAIL_ROW)
 
         result = get_recipe_by_slug(connection, "steamed-eggs")
 
         self.assertEqual(result["slug"], "steamed-eggs")
-        self.assertEqual(result["ingredients"], ["2 eggs", "1 cup water"])
-        self.assertEqual(result["instructions"], ["Whisk the eggs.", "Steam until set."])
-        self.assertEqual(
-            result["ingredient_groups"],
-            [{"position": 1, "group_position": 1, "group_name": "Egg mixture"}],
-        )
-        self.assertEqual(result["instruction_groups"], [])
+        self.assertEqual(result["ingredient_sections"], DETAIL_ROW[-2])
+        self.assertEqual(result["instruction_sections"], DETAIL_ROW[-1])
+        self.assertNotIn("ingredients", result)
+        self.assertNotIn("instructions", result)
+        self.assertNotIn("ingredient_groups", result)
+        self.assertNotIn("instruction_groups", result)
         self.assertEqual(connection.calls[0][1], ("steamed-eggs",))
-        self.assertIn("ORDER BY ri.position", connection.calls[0][0])
-        self.assertIn("ORDER BY rs.position", connection.calls[0][0])
+        self.assertIn("r.ingredient_sections", connection.calls[0][0])
+        self.assertIn("r.instruction_sections", connection.calls[0][0])
+        self.assertNotIn("recipe_ingredients", connection.calls[0][0])
+        self.assertNotIn("recipe_steps", connection.calls[0][0])
 
 
 class RecipeProjectionFieldTests(unittest.TestCase):
@@ -162,14 +161,14 @@ class RecipeProjectionFieldTests(unittest.TestCase):
             recipe_db.RECIPE_METADATA_FIELDS + recipe_db.RECIPE_SOURCE_FIELDS,
         )
         self.assertEqual(
-            recipe_db.RECIPE_DETAIL_FIELDS,
+            recipe_db.RECIPE_REPOSITORY_DETAIL_FIELDS,
             recipe_db.RECIPE_DETAIL_METADATA_FIELDS + (
-                "notes", "ingredients", "instructions", "ingredient_groups", "instruction_groups",
+                "notes", "ingredient_sections", "instruction_sections",
             ),
         )
         self.assertEqual(
             recipe_db.RECIPE_SEARCH_FIELDS,
-            recipe_db.RECIPE_DETAIL_FIELDS + ("similarity_score",),
+            recipe_db.RECIPE_REPOSITORY_DETAIL_FIELDS + ("similarity_score",),
         )
 
 
@@ -206,13 +205,16 @@ class RecipeApiTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["slug"], "steamed-eggs")
         self.assertEqual(body["description"], "Silky savory eggs.")
-        self.assertEqual(body["ingredients"], ["2 eggs", "1 cup water"])
-        self.assertEqual(body["instructions"], ["Whisk the eggs.", "Steam until set."])
         self.assertEqual(
-            body["ingredient_groups"],
-            [{"position": 1, "group_position": 1, "group_name": "Egg mixture"}],
+            body["ingredient_sections"],
+            [{"kind": "group", "name": "Egg mixture", "items": ["2 eggs", "1 cup water"]}],
         )
-        self.assertEqual(body["instruction_groups"], [])
+        self.assertEqual(
+            body["instruction_sections"],
+            [{"kind": "ungrouped", "name": None, "items": ["Whisk the eggs.", "Steam until set."]}],
+        )
+        for field in ("ingredients", "ingredient_groups", "instructions", "instruction_groups"):
+            self.assertNotIn(field, body)
         self.assertNotIn("id", body)
         self.assertNotIn("embedding", body)
         self.assertEqual(pool.enter_count, 1)

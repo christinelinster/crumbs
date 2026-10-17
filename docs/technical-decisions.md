@@ -7,25 +7,28 @@ stores structured recipes for application reads and one vector per recipe for
 future semantic retrieval. Rerunning the loader replaces stored recipe content
 from Markdown; database edits are not currently synchronized back to files.
 
-The executable schema is [app/db/schema.sql](../src/app/db/schema.sql).
+The executable schema is [app/db/schema.sql](../src/app/db/schema.sql); it
+creates tables inside the database selected by `PG_DB`, which must already exist.
 
 | Table | Purpose and constraints |
 | --- | --- |
-| `recipes` | Identity, frontmatter, optional recipe notes, and `embedding VECTOR(1536)` |
-| `recipe_ingredients` | `recipe_id`, one-based `position`, `raw_text`, nullable `normalized_name` |
-| `recipe_steps` | `recipe_id`, one-based `position`, `instruction` |
+| `recipes` | Identity, frontmatter, optional recipe notes, ordered `ingredient_sections` and `instruction_sections` JSONB arrays, and an embedding vector sized by `app.settings.EMBEDDING_DIMENSIONS` |
 
-Both child tables use `(recipe_id, position)` as their primary key and reference
-`recipes(id)` with `ON DELETE CASCADE`. The database indexes non-null normalized
-ingredient names. Positions preserve display order; reads must explicitly order
-by `position`.
+Each content array stores ordered section objects with `kind`, `name`, and
+`items`. Both ungrouped sections and explicitly unnamed groups have a null
+`name`, distinguished by `kind`. The loader normalizes parser data to this
+representation before embedding and persistence. The database checks that each
+top-level JSONB value is an array. Repository reads, RAG context, and the recipe
+detail API retain sections; Bitesize flattens section items locally only for
+ingredient highlighting. The representation is documented in [corpus format](recipe-corpus-format.md).
 
-Both child tables also have nullable `group_position` (positive integer) and
-`group_name` (text). These are display sections, not step-to-ingredient mappings.
-Group names may repeat, so group position identifies each section within a recipe.
-No group means both values are null; an unnamed group has a position and null name.
-The Markdown contract and query group metadata are documented in
-[corpus format](recipe-corpus-format.md).
+The current schema has no ingredient or instruction child tables. This
+removes their row-level keys, positions, foreign keys, and the unused partial
+index on normalized ingredient names. No current workflow queries individual
+items; the curated Markdown remains the reviewed content source. See
+[ADR 004](decisions/004-recipe-content-arrays.md) for the decision and tradeoffs.
+Setup assumes a fresh database or one already using the current schema; it does
+not upgrade a legacy child-table schema.
 
 ### Recipe fields
 
@@ -39,7 +42,9 @@ The Markdown contract and query group metadata are documented in
 - `calories`, `protein`, `carbs`, `fat`: nullable nonnegative `NUMERIC` values, allowing decimals.
 - `source_label`, `source_url`: nullable text; `source_url` is unique when present and stores provenance.
 - `notes`: optional recipe Notes section, not a nutrition-provenance field.
-- `embedding`: nullable 1,536-dimensional vector.
+- `ingredient_sections`, `instruction_sections`: non-null JSONB arrays with
+  empty-array defaults; each stores ordered grouped or ungrouped content.
+- `embedding`: nullable vector whose dimension is set by `app.settings.EMBEDDING_DIMENSIONS` (default `1536`).
 
 `'{}'` is PostgreSQL's empty array literal; Markdown uses YAML lists such as `[]`.
 No taxonomy tables are needed for this MVP: the loader trusts the curated
@@ -80,21 +85,13 @@ although it cannot be changed to a URL already assigned to another recipe.
 Store full page URLs and publisher display labels directly on each recipe.
 A separate `sources` table and base-URL/path reconstruction are deferred.
 
-## Ingredients
+## Ingredient content
 
 Preserve the original ingredient text for display, including amounts, fractions,
-preparation, and alternatives. `normalized_name` is an optional interpretation
-for ingredient matching, for example:
-
-```text
-raw_text: 300 g boneless chicken breasts, sliced
-normalized_name: chicken breast
-```
-
-Each ingredient row pairs its own raw text with its own name; names are not kept
-in a separate parallel array. The current loader sets all normalized names to
-`NULL`. Normalization and alias matching are future work. Keep distinctions such
-as chicken breast versus chicken stock rather than reducing both to chicken.
+preparation, and alternatives. The loader stores it in ordered JSONB sections
+on the recipe row; it does not currently store normalized ingredient names.
+Ingredient normalization and alias matching are future work. Keep distinctions
+such as chicken breast versus chicken stock rather than reducing both to chicken.
 
 ## Embedding and chunking
 
@@ -103,17 +100,21 @@ in this order: title, description, cuisine, categories, tags, ingredients,
 instructions, and optional notes. IDs, source URLs, and numeric frontmatter are
 excluded. Quantity text within ingredient lines is preserved.
 
-The current model is `text-embedding-3-small`, using its default 1,536 dimensions.
-The current call omits explicit dimensions and encoding format and consumes the
-numeric embedding returned by the Python SDK. The database column fixes the
-vector dimension. The function checks that the response contains one embedding;
-Postgres enforces the vector's size when it is written.
+`app.settings` is the single source for `EMBEDDING_MODEL` (default
+`text-embedding-3-small`) and `EMBEDDING_DIMENSIONS` (default `1536`). The
+current call omits explicit dimensions and encoding format and consumes the
+numeric embedding returned by the Python SDK. Fresh schema setup renders the
+Postgres vector column from the shared dimension. The embedding helper checks
+that the response contains one vector with the configured length.
 
 Do not store embedding text, model metadata, or content hashes in the database
 for the MVP. Text is reconstructible from recipe content, the model is a code
 constant, and every loader run regenerates embeddings. Recipe and query vectors
 must use the same model and dimensions. Changing models requires rebuilding the
-stored embeddings even if the new model has the same dimensions.
+stored embeddings even if the new model has the same dimensions. Changing the
+dimension for an existing database requires the explicit migration template in
+`src/app/db/schema.sql` and re-embedding the full corpus; setup never performs
+that migration automatically.
 
 `recipe_search_documents` was considered and deferred. A separate table becomes
 useful when one recipe needs multiple chunks or embedding configurations. Recipe
@@ -122,19 +123,27 @@ recommendations should return distinct recipes, not multiple chunks of one dish.
 No vector index or retrieval endpoint has been implemented. Start retrieval
 evaluation with exact vector search for the small corpus. Fetch only display
 fields for recipe cards rather than transferring embeddings with `SELECT *`.
-The database layer keeps two projections: `find_similar_recipes` returns complete
-recipe context for grounded chatbot answers, while `find_similar_recipe_cards`
-returns card metadata and a similarity score without notes, ingredients,
-instructions, or embeddings. A future frontend/API search endpoint should use
-the card projection; recipe detail requests can fetch the full recipe by slug.
+The home-page summary and chat recipe references share the same condensed fields:
+`slug`, `title`, `category`, `tags`, `total_time_minutes`, `calories`,
+`protein`, `carbs`, and `fat`. Chat references add `similarity_score` as
+retrieval metadata so the client can render it separately.
+
+There is one vector-search projection: `find_similar_recipes` returns the full
+recipe context needed for a grounded answer plus its similarity score. The query
+layer's `build_recipe_cards` derives condensed clickable cards from those same
+results, keeping the answer context and displayed references synchronized. The
+similarity score is omitted from the LLM context because it is application
+metadata, not recipe content. A recipe detail request still uses the persisted
+slug to fetch the full recipe directly.
 
 ## Modules and paths
 
 | Module | Responsibility |
 | --- | --- |
-| `app.db.setup` | Execute the schema inside a transaction |
-| `app.db.recipes` | Save recipe metadata and ordered child rows |
-| `app.rag.embeddings` | Shared OpenAI embedding model constant and one-vector helper |
+| `app.settings` | Shared model names, embedding dimensions, recipe limits, and similarity threshold |
+| `app.db.setup` | Execute the canonical schema in one transaction |
+| `app.db.recipes` | Save recipe metadata and ordered JSONB content sections |
+| `app.rag.embeddings` | Generate one vector using the shared model and validate its dimension |
 | `app.ingestion.import_recipes` | Fetch web recipes and write reviewable Markdown |
 | `app.ingestion.load_embeddings` | Parse Markdown, generate vectors, coordinate database writes |
 | `app.ingestion.utils` | Shared URL normalization, frontmatter parsing, and slug generation |
@@ -152,27 +161,58 @@ loading; the web importer strips source HTML.
 
 ## Query flow
 
-`app.rag.query.search_similar_recipes(question, limit=3, *, client,
-database_pool=pool)` embeds the question with the shared helper and retrieves
-the closest complete recipes. The OpenAI `client` is a required injected
-dependency. `database_pool` is an optional override used by callers and tests;
-the default is the application's shared pool. The `limit` is owned by
-application code and defaults to three; the LLM does not choose how many
-recipes are retrieved.
+`app.rag.query.process_query_result(question, history, *,
+database_pool=pool, recipe_slug=None)` routes each request through a model
+completion with the `get_recipe_detail` and `get_recipes` tools. The model sees
+text history plus compact ordered references for earlier recipe cards. The
+application validates every tool call before accessing the database, then
+executes exact detail lookup or one similarity query and builds cards from
+stored recipe rows. Direct answers for unrelated questions, general nutrition,
+and standalone cooking how-to questions skip recipe retrieval and embeddings.
 
-`app.rag.query.process_query(question, history, *, client, database_pool=pool,
-limit=3)` coordinates retrieval, the guarded system prompt, prior in-memory
-messages, and the chat completion. It appends the user and assistant messages
-to the caller-owned `history` list only after a successful nonempty answer.
-Conversation history is process-local and is not assigned a database ID or
-written to Postgres. The history disappears when the application exits.
+`get_recipes` owns the optional requested count: it defaults to three and is
+capped at ten. General discovery embeds the supplied search text. Similarity to
+a specific recipe uses its stored embedding and excludes the anchor. Chat
+search retrieves one top-limit candidate set without a SQL similarity cutoff;
+the application classifies scores strictly above
+`app.settings.DEFAULT_SIMILARITY_THRESHOLD` (currently `0.3`) as strong and
+applies the approved weak-result rules to that same set. Exact detail cards
+have a null similarity score.
+
+When a tool returns recipe data, one final model completion writes the answer.
+Discovery context includes concise metadata and match strength; complete recipe
+content is supplied only for `get_recipe_detail`. Database connections are
+released before the final completion. `database_pool` is an optional override
+used by callers and tests; the default is the application's shared pool.
+
+`app.rag.query.process_query(question, history, *, database_pool=pool,
+recipe_slug=None)` is a string wrapper around
+`process_query_result(...).answer`. The result-producing function appends the
+user and assistant messages to the caller-owned `history` list only after a
+successful answer. Conversation history is process-local and is not assigned a
+database ID or written to Postgres. The history disappears when the
+application exits.
 
 The chat model is configured by `OPENAI_CHAT_MODEL` and defaults to
 `gpt-4o-mini`. The interactive entry point is
 `poetry run python -m app.main`.
+Routing and answer generation use `client.responses.create`; both the default
+`gpt-4o-mini` and configurable `gpt-6-luna` support Responses function calling.
+The existing `OPENAI_CHAT_MODEL` variable name remains to avoid changing the
+application's configuration interface.
 
-Setup uses `CREATE ... IF NOT EXISTS` plus an explicit, additive grouping upgrade
-with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`. This upgrades existing child
-tables without replacing their rows. Other schema differences are not automatically
-migrated; future schema changes require their own migrations.
-See [the operations guide](importing-recipes.md) for loading and transaction behavior.
+The retrieved recipe documents are request-scoped prompt context. They are not
+added to the process-local conversation history; history contains only the
+user and assistant messages needed for conversational continuity.
+
+`app.db.setup` connects to the already-created database named by `PG_DB` and
+executes `schema.sql` in one transaction. The schema creates the `recipes`
+table with its JSONB arrays. Setup is intended for a fresh database or one
+already using the current schema. Because `CREATE TABLE IF NOT EXISTS` does not
+alter an existing legacy table, setup does not upgrade the former child-table
+schema; recreate a legacy database when its contents can be discarded.
+
+After setup, `load_embeddings` upserts and re-embeds every Markdown file present
+in the corpus. It does not delete database recipes whose Markdown files are
+absent. The full storage choice and its tradeoffs are in
+[ADR 004](decisions/004-recipe-content-arrays.md).

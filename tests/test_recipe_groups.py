@@ -4,8 +4,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
+import app.ingestion.groups as recipe_groups
 from app.db.recipes import save_recipe
-from app.ingestion.groups import group_at
+from app.ingestion.groups import group_at, normalize_recipe_sections
 from app.ingestion.load_embeddings import build_embedding_text, parse_recipe_file
 from tests.test_load_embeddings import FakeConnection, RECIPE_MARKDOWN
 
@@ -28,16 +29,82 @@ class RecipeGroupTests(unittest.TestCase):
             {"start": 1, "name": "Sauce"}, {"start": 2, "name": None},
         ])
         self.assertEqual(recipe["instruction_groups"], [{"start": 1, "name": "Cook"}])
-        text = build_embedding_text(recipe)
+        normalized = normalize_recipe_sections(recipe)
+        text = build_embedding_text(normalized)
         self.assertIn("Sauce\n- 2 chicken breasts sliced thinly", text)
         self.assertIn("Cook\n1. Simmer the chicken. Skim the broth.", text)
         self.assertNotIn("None", text)
         conn = FakeConnection()
-        save_recipe(conn, recipe, [0.1])
-        ingredients = [p for sql, p in conn.calls if "INSERT INTO recipe_ingredients" in sql]
-        self.assertEqual([p[-2:] for p in ingredients], [(1, "Sauce"), (2, None)])
-        steps = [p for sql, p in conn.calls if "INSERT INTO recipe_steps" in sql]
-        self.assertEqual([p[-2:] for p in steps], [(1, "Cook"), (1, "Cook")])
+        save_recipe(conn, normalized, [0.1])
+        upsert = next(params for sql, params in conn.calls if "INSERT INTO recipes" in sql)
+        self.assertEqual(upsert["ingredient_sections"].obj, [
+            {"kind": "group", "name": "Sauce", "items": ["2 chicken breasts sliced thinly"]},
+            {"kind": "group", "name": None, "items": ["1 cabbage"]},
+        ])
+        self.assertEqual(upsert["instruction_sections"].obj, [
+            {"kind": "group", "name": "Cook", "items": [
+                "Simmer the chicken. Skim the broth.", "Add the cabbage.",
+            ]},
+        ])
+        self.assertFalse(any(
+            "recipe_ingredients" in sql or "recipe_steps" in sql
+            for sql, _ in conn.calls
+        ))
+
+    def test_normalizes_parser_fields_to_canonical_sections(self):
+        raw = self.parse(RECIPE_MARKDOWN.replace(
+            "- 2 chicken", "### Sauce\n- 2 chicken"
+        ))
+
+        normalized = normalize_recipe_sections(raw)
+
+        self.assertEqual(normalized["ingredient_sections"], [
+            {"kind": "group", "name": "Sauce", "items": [
+                "2 chicken breasts sliced thinly", "1 cabbage",
+            ]},
+        ])
+        self.assertEqual(normalized["instruction_sections"], [
+            {"kind": "ungrouped", "name": None, "items": [
+                "Simmer the chicken. Skim the broth.", "Add the cabbage.",
+            ]},
+        ])
+        self.assertNotIn("ingredients", normalized)
+        self.assertNotIn("instructions", normalized)
+        self.assertNotIn("ingredient_groups", normalized)
+        self.assertNotIn("instruction_groups", normalized)
+        self.assertEqual(normalized["slug"], raw["slug"])
+
+    def test_parser_boundaries_normalize_to_ordered_sections(self):
+        items_to_sections = getattr(recipe_groups, "items_to_sections", None)
+        self.assertIsNotNone(items_to_sections, "items_to_sections helper is missing")
+        if items_to_sections is None:
+            return
+
+        items = ["before", "soy sauce", "vinegar", "sugar", "pepper"]
+        groups = [
+            {"start": 2, "name": "For sauce"},
+            {"start": 4, "name": None},
+            {"start": 5, "name": "For sauce"},
+        ]
+        sections = items_to_sections(items, groups)
+
+        self.assertEqual(sections, [
+            {"kind": "ungrouped", "name": None, "items": ["before"]},
+            {"kind": "group", "name": "For sauce", "items": ["soy sauce", "vinegar"]},
+            {"kind": "group", "name": None, "items": ["sugar"]},
+            {"kind": "group", "name": "For sauce", "items": ["pepper"]},
+        ])
+
+    def test_all_ungrouped_items_use_one_section(self):
+        items_to_sections = getattr(recipe_groups, "items_to_sections", None)
+        self.assertIsNotNone(items_to_sections, "items_to_sections helper is missing")
+        if items_to_sections is None:
+            return
+
+        sections = items_to_sections(["first", "second"], [])
+        self.assertEqual(sections, [{
+            "kind": "ungrouped", "name": None, "items": ["first", "second"],
+        }])
 
     def test_ungrouped_and_repeated_names(self):
         self.assertEqual(self.parse(RECIPE_MARKDOWN)["ingredient_groups"], [])

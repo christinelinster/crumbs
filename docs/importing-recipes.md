@@ -43,11 +43,12 @@ before chunking and database insertion.
 
 ## Loading recipes into Postgres
 
-The schema now supports optional ingredient and instruction groups. Running the
-setup command below both creates the correct tables for a fresh database and adds
-the four nullable grouping columns to existing tables using repeatable
-`ADD COLUMN IF NOT EXISTS` statements. Existing rows initially remain ungrouped.
-Load the curated corpus afterward to persist its headings and regenerate embeddings.
+The setup command connects to the database already named by `PG_DB`; create that
+database before running setup. It creates the current recipe table schema in a
+fresh database and can be rerun against that schema. It does not upgrade the
+legacy child-table schema. Use a fresh database, or recreate a legacy database
+if its contents can be discarded. Load the curated corpus afterward to populate
+recipes and generate embeddings for the files present.
 
 Set the existing `PG_DB`, `PG_HOST`, `PG_USER`, and `PG_PORT` variables
 and initialize the schema:
@@ -62,24 +63,29 @@ Then set `OPENAI_API_KEY` and run:
 poetry run python -m app.ingestion.load_embeddings
 ```
 
-The schema defaults to `VECTOR(1536)` because the current embedding model
-returns 1,536-dimensional vectors by default. If you change the embedding model
-and its output dimension is different, update `EMBEDDING_MODEL`, run the
-dimension migration template near the bottom of `src/app/db/schema.sql` after
-replacing `3072` with the new dimension, and then run the loader above. The
-migration clears only the old vectors; the loader regenerates them for every
-Markdown recipe. If the new model uses the same dimension, only changing
-`EMBEDDING_MODEL` and rerunning the loader is required.
+`app.settings` is the single source for `EMBEDDING_MODEL` and
+`EMBEDDING_DIMENSIONS`. The model defaults to `text-embedding-3-small`, and the
+dimension defaults to `1536`; both can be configured through environment
+variables. Fresh database setup renders the schema's vector dimension from
+`EMBEDDING_DIMENSIONS`.
 
-The loader parses every Markdown recipe, generates one embedding using
-`EMBEDDING_MODEL` (which defaults to `text-embedding-3-small` and 1,536
-dimensions), and stores the recipe, ordered ingredients, ordered instructions,
-and embedding in Postgres. It uses only the persisted `slug` to update an
-existing recipe while preserving its database ID. A
+Changing the embedding model requires regenerating all recipe embeddings. If
+the configured dimension changes for an existing database, first run the
+explicit migration template near the bottom of `src/app/db/schema.sql`,
+replacing its dimension placeholders with the target dimension, then run the
+loader above. The migration clears the old vectors; the loader regenerates them
+for every Markdown recipe. Setup does not migrate an existing database
+automatically. If a new model uses the same dimension, update `EMBEDDING_MODEL`
+and rerun the loader.
+
+The loader parses every Markdown recipe, generates one embedding using the
+shared `EMBEDDING_MODEL` and validates its length against
+`EMBEDDING_DIMENSIONS`. It stores the recipe, ordered ingredient and instruction section
+arrays, and embedding in the `recipes` row. It uses only the persisted `slug` to
+update an existing recipe while preserving its database ID. A
 canonical `source_url`, when present, is stored as optional, unique provenance.
 Each run regenerates embeddings, so rerunning the command uses OpenAI API
-requests for every valid recipe. Normalized ingredient names are initially left
-empty and can be populated later.
+requests for every valid recipe.
 
 The loader reports inserted, updated, and failed recipes and exits with status
 `1` if any recipe fails. A failed embedding is not written to the database.
@@ -88,12 +94,14 @@ before making embedding calls. A parsing or duplicate-key error stops that run
 before API requests. An individual API or write failure is reported and
 processing continues with the next recipe.
 
+The loader parses raw Markdown fields and group boundaries, normalizes them to
+canonical content sections, then builds the embedding text from those sections.
 Embedding generation happens before the recipe's write transaction. Metadata,
-ingredients, steps, and the vector are committed together; write failures roll
-back that recipe. Updates replace the child rows, including any previously
-populated normalized ingredient names. Removing a Markdown file does not delete
-its existing database record. There is no embedding cache, source refresh job,
-or automatic synchronization from database edits back to Markdown.
+content section arrays, and the vector are committed together; write failures
+roll back that recipe. Each loader run re-embeds every Markdown file present.
+Removing a Markdown file does not delete its existing database record. There is
+no embedding cache, source refresh job, or automatic synchronization from
+database edits back to Markdown.
 
 All three commands use shared paths from `app.paths`, resolved relative to this
 checkout rather than the current working directory. Run the Poetry commands from
@@ -110,9 +118,14 @@ After initializing Postgres and loading the recipe corpus, set the required
 runtime variables:
 
 - `OPENAI_API_KEY` for embeddings and chat responses.
+- `EMBEDDING_MODEL` and `EMBEDDING_DIMENSIONS` are optional and default to
+  `text-embedding-3-small` and `1536`.
 - The existing `PG_DB`, `PG_HOST`, `PG_USER`, and `PG_PORT` variables for the
   Postgres connection pool.
 - `OPENAI_CHAT_MODEL` is optional and defaults to `gpt-4o-mini`.
+- Set `OPENAI_CHAT_MODEL=gpt-6-luna` to use GPT-6 Luna; restart the backend after
+  changing the setting. Chat routing and answer generation use the Responses
+  API, which supports function calling for both configured models.
 
 Start the interactive CLI from the project root with:
 
