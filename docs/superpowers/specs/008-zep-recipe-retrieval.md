@@ -6,16 +6,26 @@ Keep the SDK integration small and readable, with three modules:
 
 - `client.py`: construct the Zep client from settings.
 - `ingest.py`: serialize/add a recipe and save the current conversation pair.
-- `retrieval.py`: raw recipe/preference searches and source episode slug lookup.
+- `retrieval.py`: recipe/preference searches and full source episode recipe lookup.
 
 ## Recipe discovery
 
 Bitesize defaults to Zep graph search and also offers Vector RAG. The selected
 backend goes to the existing chat endpoint/orchestrator. The Zep search handler
-passes up to ten raw edge facts to the answer model. A separate helper maps
-source episodes to available recipe cards using `metadata.recipe_slug` or
-`document_id`; it never guesses a slug from generated text. The same answer
-synthesis call returns answer text and the slugs of recipes offered in that
+passes up to ten raw edge facts and complete original episode recipes to the
+answer model. A separate helper parses source episode JSON and identifies recipes using
+`metadata.recipe_slug` or `document_id`; it never guesses a slug from generated
+text. The answer model checks complete ingredient/instruction content against
+the user's request and remembered preferences. No application-side ingredient
+exclusion matcher, structured exclusion argument, or custom ingredient reranking
+is used. Do not offer
+recipes that contain avoided ingredients or cannot be verified, even as alternatives.
+The same episode recipes supply source cards without any Postgres reads in
+discovery. Preserve original ingredient/instruction lists and group boundaries.
+Fetch each source UUID once and deduplicate recipe slugs in source order. Skip
+invalid JSON, non-recipe content, and mismatched source/body slugs without a
+Postgres fallback.
+The same answer synthesis call returns answer text and the slugs of recipes offered in that
 answer. Return only those known cards, deduplicated and in answer order, for
 both Vector and Zep. Do not impose a fixed card count or show every source.
 An answer offering no recipes returns no cards. Exact recipe
@@ -36,6 +46,10 @@ lazily, retrieve preference facts before answering, and save only the current
 user/assistant pair after answering. Assistant messages remain in thread history
 but are excluded from extraction. Verify supplied thread UUIDs belong to the
 configured test user.
+
+Preference retrieval uses Zep's native date filters: `invalid_at is_null` AND
+`expired_at is_null`. Zep/Graphiti owns supersession and invalidation; the app
+does not reconcile contradictory facts that remain marked active.
 
 Off prevents personal memory reads/writes; recipe search and local follow-ups
 continue. Each toggle change clears the remote thread pointer, so subsequent

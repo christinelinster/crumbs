@@ -6,7 +6,7 @@ Three small modules, plus the existing settings file:
 src/app/zep/
     client.py       # get_zep()
     ingest.py       # recipe episodes and current-turn message writes
-    retrieval.py    # raw searches and source episode recipe slugs
+    retrieval.py    # graph searches and original source recipe JSON
 ```
 
 No worker, CLI framework, or database migration. Bitesize uses the same answer
@@ -116,14 +116,26 @@ npm --prefix clients/bitesize run dev
 
 Open the URL printed by Vite, open Ask Crumbs, and leave **Retrieval** set to
 **Zep graph**, the default. Recipe discovery now calls Zep's edge search and
-passes the first ten returned edge facts directly to the answer model. A
-separate card helper reads source episode slugs and loads available recipe cards.
+passes the first ten returned edge facts to the answer model alongside complete
+recipes parsed from their original Zep source episodes. The answer model uses
+the complete ingredient and instruction content to assess preferences. There is
+no application-side ingredient exclusion matcher, exclusion tool argument, or
+custom ingredient reranking. The same episode records supply recipe cards;
+Zep discovery does not read Postgres. Duplicate source episode IDs are fetched
+once and recipe slugs are deduplicated in source order. Invalid JSON, non-recipe
+content, and mismatched source/body slugs are skipped without a Postgres fallback.
 When writing the answer, the model also returns the slugs it actually offers.
 Bitesize shows only those cards, in answer order. There is no fixed card count:
 an answer offering one recipe gets one card; six offered recipes get six cards.
 No slugs are guessed from fact text. Exact recipe
-details also use the canonical recipe store. General questions may be answered
+detail tools and opening a recipe card still use the canonical Postgres recipe
+store. General questions may be answered
 without a recipe retrieval tool.
+
+Managed Zep provides semantic and BM25 search with default RRF ranking, plus
+temporal extraction/invalidation during ingestion. These do not implement
+ingredient exclusions from natural-language search text. Current-fact filters
+are supplied explicitly for preference retrieval.
 
 Choose **Vector RAG** to compare with the original discovery path. Changing the
 selector starts a fresh chat so earlier answers do not affect the comparison.
@@ -151,8 +163,11 @@ memory reads/writes. Only enabled turns are submitted to Zep.
 
 The backend creates a thread for the first enabled turn, retrieves remembered
 preference facts for the answer, then saves that turn's user and assistant
-messages. Assistant messages are stored as history but excluded from graph
-extraction. The UI says **Conversation saved to Zep** when that write succeeds;
+messages. Preference search applies Zep's native date filters with
+`invalid_at is_null` AND `expired_at is_null`. This excludes facts Zep has
+already invalidated or superseded; it does not resolve contradictions still
+marked active in the graph. Assistant messages are stored as history but excluded
+from graph extraction. The UI says **Conversation saved to Zep** when that write succeeds;
 it does not claim extraction has finished or that the graph changed. A save
 error preserves the answer and shows a warning. There is no automatic retry.
 
