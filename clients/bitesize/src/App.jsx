@@ -15,11 +15,9 @@ function AppShell() {
   const recipeMatch = useMatch('/recipe/:slug')
   const recipeSlug = recipeMatch?.params.slug ?? null
   const { recipe: selectedRecipe } = useRecipe(recipeSlug)
-  const [recipeContextEnabled, setRecipeContextEnabled] = useState(
-    () => Boolean(recipeSlug),
-  )
+  const [discussedRecipeSlug, setDiscussedRecipeSlug] = useState(null)
   const [chatOpen, setChatOpen] = useState(false)
-  const activeRecipeSlug = recipeContextEnabled ? recipeSlug : null
+  const activeRecipeSlug = discussedRecipeSlug === recipeSlug ? recipeSlug : null
   const recipeContext = activeRecipeSlug
     ? {
         slug: activeRecipeSlug,
@@ -29,7 +27,7 @@ function AppShell() {
   const chat = useChat(activeRecipeSlug)
 
   useEffect(() => {
-    setRecipeContextEnabled(Boolean(recipeSlug))
+    setDiscussedRecipeSlug(null)
   }, [recipeSlug])
 
   return (
@@ -53,7 +51,7 @@ function AppShell() {
               isFavourite={isFavourite}
               toggleFavourite={toggleFavourite}
               onDiscussRecipe={() => {
-                setRecipeContextEnabled(true)
+                setDiscussedRecipeSlug(recipeSlug)
                 setChatOpen(true)
               }}
             />
@@ -69,7 +67,7 @@ function AppShell() {
         onClose={() => setChatOpen(false)}
         onNewChat={chat.reset}
         recipeContext={recipeContext}
-        onClearRecipeContext={() => setRecipeContextEnabled(false)}
+        onClearRecipeContext={() => setDiscussedRecipeSlug(null)}
         {...chat}
       />
     </>

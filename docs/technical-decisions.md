@@ -185,9 +185,10 @@ content is supplied only for `get_recipe_detail`. Database connections are
 released before the final completion. `database_pool` is an optional override
 used by callers and tests; the default is the application's shared pool.
 
-`app.rag.query.process_query(question, history, *, database_pool=pool,
-recipe_slug=None)` is a string wrapper around
-`process_query_result(...).answer`. The result-producing function appends the
+The API and CLI both call `app.rag.query.process_query_result(...)`; the CLI
+prints its `answer`. Tool schemas and execution live in `app.rag.tools`, and
+SQL stays in `app.db.recipes`. Missing detail results use `recipe: null`, which
+the answer prompt treats as not found without substitute searches. The query function appends the
 user and assistant messages to the caller-owned `history` list only after a
 successful answer. Conversation history is process-local and is not assigned a
 database ID or written to Postgres. The history disappears when the

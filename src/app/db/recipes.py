@@ -69,11 +69,6 @@ RECIPE_REPOSITORY_DETAIL_FIELDS = RECIPE_DETAIL_METADATA_FIELDS + (
     "notes", "ingredient_sections", "instruction_sections",
 )
 RECIPE_SEARCH_FIELDS = RECIPE_REPOSITORY_DETAIL_FIELDS + ("similarity_score",)
-RECIPE_ANCHOR_FIELDS = (
-    "slug", "title", "description", "category", "tags", "cuisine",
-    "total_time_minutes", "servings", "calories", "protein", "carbs", "fat",
-    "embedding",
-)
 
 def _validate_search_limit(limit: int):
     if type(limit) is not int or limit <= 0:
@@ -94,32 +89,15 @@ def list_recipe_summaries(conn) -> list[dict[str, object]]:
     return [dict(zip(RECIPE_SUMMARY_FIELDS, row)) for row in rows]
 
 
-def get_recipe_by_slug(
-    conn,
-    slug: str,
-    *,
-    include_embedding: bool = False,
-) -> dict[str, object] | None:
-    """Return a recipe by slug, optionally including compact similarity fields."""
-    if include_embedding:
-        fields = RECIPE_ANCHOR_FIELDS
-        selected_fields = """
-            r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
-            r.total_time_minutes, r.servings, r.calories, r.protein, r.carbs, r.fat,
-            r.embedding::real[] AS embedding
+def get_recipe_by_slug(conn, slug: str) -> dict[str, object] | None:
+    """Return the full recipe matching the slug."""
+    row = conn.execute(
         """
-    else:
-        fields = RECIPE_REPOSITORY_DETAIL_FIELDS
-        selected_fields = """
+        SELECT
             r.slug, r.title, r.description, r.category, r.tags, r.cuisine,
             r.total_time_minutes, r.servings, r.calories, r.protein, r.carbs, r.fat,
             r.source_label, r.source_url, r.notes,
             r.ingredient_sections, r.instruction_sections
-        """
-
-    row = conn.execute(
-        f"""
-        SELECT {selected_fields}
         FROM recipes AS r
         WHERE r.slug = %s
         """,
@@ -127,7 +105,22 @@ def get_recipe_by_slug(
     ).fetchone()
     if row is None:
         return None
-    return dict(zip(fields, row))
+    return dict(zip(RECIPE_REPOSITORY_DETAIL_FIELDS, row))
+
+
+def get_recipe_embedding(conn, slug: str) -> dict[str, object] | None:
+    """Return the recipe identity and stored vector for similarity search."""
+    row = conn.execute(
+        """
+        SELECT r.slug, r.title, r.embedding::real[] AS embedding
+        FROM recipes AS r
+        WHERE r.slug = %s
+        """,
+        (slug,),
+    ).fetchone()
+    if row is None:
+        return None
+    return dict(zip(("slug", "title", "embedding"), row))
 
 
 def find_similar_recipes(

@@ -36,3 +36,11 @@ class RoutingToolTests(unittest.TestCase):
             {"input", "limit", "similar_to_slug"},
         )
         self.assertFalse(search_schema["additionalProperties"])
+
+    def test_zep_schema_exposes_only_supported_search_arguments(self):
+        tools = self.routing_tools()
+        schemas = tools.get_recipe_tools("zep")
+        self.assertEqual(set(schemas[1]["parameters"]["properties"]), {"input", "include_history"})
+        self.assertEqual(schemas[1]["parameters"]["required"], ["input"])
+        self.assertEqual(set(tools.get_recipe_tools("vector")[1]["parameters"]["properties"]),
+                         {"input", "limit", "similar_to_slug"})

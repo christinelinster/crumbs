@@ -8,9 +8,9 @@ from unittest.mock import patch
 from app.db import recipes as recipe_repository
 from app.db.recipes import DEFAULT_SIMILARITY_THRESHOLD, find_similar_recipes
 from app.rag import query as query_module
+from app.rag.tools import RECIPE_TOOLS, build_recipe_cards
 from app.settings import DEFAULT_RECIPE_LIMIT, EMBEDDING_DIMENSIONS
 from app.rag.query import (
-    build_recipe_cards,
     process_query_result,
 )
 
@@ -35,7 +35,7 @@ RECIPE_ROW = (
     [{"kind": "ungrouped", "name": None, "items": ["Whisk the eggs.", "Steam until set."]}],
     0.91,
 )
-ANCHOR_ROW = RECIPE_ROW[:12] + ([0.2] * EMBEDDING_DIMENSIONS,)
+ANCHOR_ROW = RECIPE_ROW[:2] + ([0.2] * EMBEDDING_DIMENSIONS,)
 
 
 def recipe_with_score(score, *, slug=None, title=None):
@@ -270,7 +270,7 @@ class QueryRoutingTests(QueryTestCase):
         self.assertIn("get_recipes", router_prompt)
         self.assertIn("recipe collection", router_prompt.lower())
         self.assertIn("do not answer from general knowledge", router_prompt.lower())
-        self.assertEqual(chat.calls[0]["tools"], query_module.RECIPE_TOOLS)
+        self.assertEqual(chat.calls[0]["tools"], RECIPE_TOOLS)
         self.assertEqual(chat.calls[0]["tool_choice"], "auto")
 
 
@@ -352,7 +352,7 @@ class QueryToolExecutionTests(QueryTestCase):
         self.assertEqual(len(connection.calls), 1)
         self.assertTrue(connection.calls[0][0].lstrip().startswith("SELECT"))
         detail_result = self.tool_results(chat)[0]
-        self.assertEqual(detail_result["tool_name"], "get_recipe_detail")
+        self.assertEqual(set(detail_result), {"recipe"})
         self.assertEqual(detail_result["recipe"]["ingredient_sections"], RECIPE_ROW[-3])
         self.assertEqual(detail_result["recipe"]["instruction_sections"], RECIPE_ROW[-2])
         self.assertIn("2 eggs", chat.calls[-1]["input"][-1]["output"])
@@ -408,12 +408,10 @@ class QueryToolExecutionTests(QueryTestCase):
         self.assertEqual(database_pool.connection_count, 1)
         self.assertEqual(len(connection.calls), 1)
         self.assertIn("WHERE r.slug = %s", connection.calls[0][0])
-        self.assertEqual(self.tool_results(chat)[0], {
-            "tool_name": "get_recipe_detail",
-            "slug": "missing-recipe",
-            "not_found": True,
-        })
-        self.assertIn("not_found", chat.calls[-1]["input"][-1]["output"])
+        self.assertEqual(self.tool_results(chat)[0], {"recipe": None})
+        self.assertIn('"recipe": null', chat.calls[-1]["input"][-1]["output"])
+        self.assertIn("recipe is null", chat.calls[-1]["instructions"])
+        self.assertIn("do not search for substitutes", chat.calls[-1]["instructions"])
 
     def test_model_slug_is_passed_directly_to_database_lookup(self):
         _, chat = self.client_for_tools([
@@ -456,7 +454,7 @@ class QueryToolExecutionTests(QueryTestCase):
         self.assertEqual(params[-1], DEFAULT_RECIPE_LIMIT)
         self.assertEqual([card["slug"] for card in result.recipe_cards], ["protein-pancakes"])
         search_result = self.tool_results(chat)[0]
-        self.assertTrue(search_result["found_suitable_match"])
+        self.assertEqual(set(search_result), {"matches"})
         self.assertEqual(search_result["matches"][0]["match_strength"], "strong")
         model_context = chat.calls[-1]["input"][-1]["output"]
         self.assertNotIn("ingredient_sections", model_context)
@@ -508,7 +506,7 @@ class QueryToolExecutionTests(QueryTestCase):
 
         self.assertEqual(len(result.recipe_cards), 2)
         search_result = self.tool_results(chat)[0]
-        self.assertFalse(search_result["found_suitable_match"])
+        self.assertEqual(set(search_result), {"matches"})
         self.assertEqual(
             [item["match_strength"] for item in search_result["matches"]],
             ["weak", "weak"],
@@ -557,7 +555,7 @@ class QueryToolExecutionTests(QueryTestCase):
         self.assertEqual(connection.calls[1][1][-2:], ("steamed-eggs", 2))
         self.assertEqual(result.recipe_cards[0]["slug"], "egg-custard")
         tool_result = self.tool_results(chat)[0]
-        self.assertEqual(tool_result["anchor_title"], "Steamed Eggs")
+        self.assertEqual(tool_result["anchor"]["title"], "Steamed Eggs")
         self.assertNotIn("embedding", json.dumps(tool_result))
         self.assertNotIn("ingredient_sections", json.dumps(tool_result))
 
@@ -608,19 +606,59 @@ class QueryToolExecutionTests(QueryTestCase):
             for sql, _ in connection.calls
         ))
 
+    def test_missing_similarity_anchor_returns_null_without_embedding_or_search(self):
+        embedding, chat = self.client_for_tools([
+            provider_tool_call("get_recipes", {
+                "input": "similar to Missing Recipe", "similar_to_slug": "missing",
+            })
+        ])
+        connection = FakeConnection([RECIPE_ROW], row=None)
+        result = self.execute_tools("Similar to Missing Recipe?", [], FakePool(connection))
+        self.assertEqual(self.tool_results(chat), [{"anchor": None, "matches": []}])
+        self.assertEqual(result.recipe_cards, [])
+        self.assertEqual(len(connection.calls), 1)
+        self.assertEqual(embedding.calls, [])
+        self.assertIn("anchor: null", chat.calls[-1]["instructions"])
+
+    def test_anchor_without_embedding_does_not_generate_a_replacement_vector(self):
+        embedding, chat = self.client_for_tools([
+            provider_tool_call("get_recipes", {
+                "input": "similar eggs", "similar_to_slug": "steamed-eggs",
+            })
+        ])
+        connection = FakeConnection([RECIPE_ROW], row=("steamed-eggs", "Steamed Eggs", None))
+        result = self.execute_tools("Similar eggs?", [], FakePool(connection))
+        self.assertEqual(result.recipe_cards, [])
+        self.assertEqual(self.tool_results(chat), [{
+            "anchor": {"slug": "steamed-eggs", "title": "Steamed Eggs"}, "matches": [],
+        }])
+        self.assertEqual(len(connection.calls), 1)
+        self.assertEqual(embedding.calls, [])
+
+    def test_unknown_tool_fails_before_database_or_embedding_access(self):
+        embedding, chat = self.client_for_tools([
+            provider_tool_call("delete_recipe", {"slug": "steamed-eggs"})
+        ])
+        database_pool = FakePool(FakeConnection([RECIPE_ROW]))
+        with self.assertRaisesRegex(ValueError, "unknown recipe tool"):
+            self.execute_tools("Delete eggs", [], database_pool)
+        self.assertEqual(database_pool.connection_count, 0)
+        self.assertEqual(embedding.calls, [])
+        self.assertEqual(len(chat.calls), 1)
+
+
 class RecipeDatabaseTests(QueryTestCase):
-    def test_slug_lookup_can_include_compact_similarity_fields_and_stored_embedding(self):
+    def test_embedding_lookup_returns_only_identity_and_stored_embedding(self):
         connection = FakeConnection([], row=ANCHOR_ROW)
-        anchor = recipe_repository.get_recipe_by_slug(
+        anchor = recipe_repository.get_recipe_embedding(
             connection,
             "steamed-eggs",
-            include_embedding=True,
         )
 
         self.assertEqual(anchor["slug"], "steamed-eggs")
         self.assertEqual(anchor["title"], "Steamed Eggs")
         self.assertEqual(anchor["embedding"], [0.2] * EMBEDDING_DIMENSIONS)
-        self.assertEqual(anchor["protein"], 14)
+        self.assertEqual(set(anchor), {"slug", "title", "embedding"})
         self.assertNotIn("ingredient_sections", anchor)
         self.assertNotIn("instruction_sections", anchor)
         sql, params = connection.calls[0]
@@ -631,11 +669,10 @@ class RecipeDatabaseTests(QueryTestCase):
         self.assertNotIn("instruction_sections", sql)
         self.assertEqual(params, ("steamed-eggs",))
 
-    def test_slug_lookup_returns_none_for_missing_similarity_anchor(self):
-        self.assertIsNone(recipe_repository.get_recipe_by_slug(
+    def test_embedding_lookup_returns_none_for_missing_similarity_anchor(self):
+        self.assertIsNone(recipe_repository.get_recipe_embedding(
             FakeConnection([], row=None),
             "missing-recipe",
-            include_embedding=True,
         ))
 
     def test_chat_search_can_skip_threshold_and_exclude_its_anchor(self):

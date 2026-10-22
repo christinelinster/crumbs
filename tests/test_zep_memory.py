@@ -1,5 +1,7 @@
 """Shared test memory is explicit and does not change answer delivery on save failure."""
 from types import SimpleNamespace
+from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
@@ -8,7 +10,8 @@ from zep_cloud.core.api_error import ApiError
 
 from app.api import create_app
 from app.rag.query import QueryResult
-from tests.test_chat_api import FakeConnection, FakePool
+from tests.test_chat_api import FakeConnection, FakePool, zep_context
+from app.zep.retrieval import get_graph_context
 
 USER_UUID = '671fae5e-4f0b-485c-aa14-d4cdd01106d8'
 THREAD_UUID = '00f14dc0-7cd5-4936-9663-2e253d75a016'
@@ -16,15 +19,20 @@ THREAD_UUID = '00f14dc0-7cd5-4936-9663-2e253d75a016'
 
 class SharedMemoryTests(unittest.TestCase):
     def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        capture_patch = patch('app.chat_capture.CAPTURE_DIR', Path(directory.name))
+        capture_patch.start()
+        self.addCleanup(capture_patch.stop)
         self.zep = Mock()
         self.zep.thread.create.return_value = SimpleNamespace(uuid_=THREAD_UUID)
         self.zep.thread.get.return_value = SimpleNamespace(user_uuid=USER_UUID)
-        self.fact = Mock()
-        self.fact.model_dump.return_value = {'fact': 'User avoids shrimp.'}
+        self.memory_context = '<User Preferences>User avoids shrimp.</User Preferences>'
+        self.zep.graph.get_context.return_value = zep_context(context=self.memory_context)
         self.patches = [
             patch('app.api.get_zep', return_value=self.zep),
             patch('app.api.settings.ZEP_USER_UUID', USER_UUID),
-            patch('app.api.search_preferences', return_value=SimpleNamespace(items=[self.fact])),
+            patch('app.api.get_graph_context', wraps=get_graph_context),
             patch('app.api.process_query_result', return_value=QueryResult('Try tofu.', [], [])),
         ]
         self.mocks = []
@@ -42,12 +50,23 @@ class SharedMemoryTests(unittest.TestCase):
         self.assertEqual(response.json()['thread_uuid'], THREAD_UUID)
         self.assertEqual(response.json()['memory_status'], 'saved')
         self.zep.thread.create.assert_called_once_with(user_uuid=USER_UUID)
-        self.assertEqual(self.mocks[3].call_args.kwargs['memory_context'], [{'fact': 'User avoids shrimp.'}])
+        self.assertEqual(self.mocks[3].call_args.kwargs['memory_context'], self.memory_context)
         args, kwargs = self.zep.thread.add_messages.call_args
         self.assertEqual(args, (THREAD_UUID,))
         self.assertEqual([(m.role, m.content) for m in kwargs['messages']],
                          [('user', 'Dinner?'), ('assistant', 'Try tofu.')])
         self.assertEqual(kwargs['ignore_roles'], ['assistant'])
+
+    def test_memory_context_precedes_answer_and_message_save_follows_it(self):
+        ordered = Mock()
+        ordered.attach_mock(self.mocks[2], 'context')
+        ordered.attach_mock(self.mocks[3], 'answer')
+        ordered.attach_mock(self.zep.thread.add_messages, 'save')
+        response = self.http.post('/api/chat', json={
+            'question': 'Dinner?', 'shared_memory': True,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([call[0] for call in ordered.mock_calls], ['context', 'answer', 'save'])
 
     def test_reload_reuses_thread_and_memory_off_makes_no_personal_calls(self):
         response = self.http.post('/api/chat', json={

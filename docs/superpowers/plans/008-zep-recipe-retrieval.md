@@ -1,14 +1,14 @@
 # 008: Simple Zep recipe experiment
 
-**Status:** Implemented; awaiting user review
+**Status:** Implemented; approved for commit and push
 
 Specification: [008-zep-recipe-retrieval.md](../specs/008-zep-recipe-retrieval.md).
 
 - [x] Keep three thin SDK modules. Remove the earlier worker/ledger/revision
   infrastructure without deleting existing data or credentials.
 - [x] Add a Vector/Zep selector to Bitesize, defaulting to Zep, and route chat
-  discovery to the selected backend. Keep raw graph facts as Zep evidence.
-- [x] Map source episode slugs to existing recipe cards in a separate helper.
+  discovery to the selected backend. Preserve Zep's native assembled context.
+- [x] Resolve full source recipe snapshots and use them for recipe cards.
 - [x] Add one configured shared test user, lazy per-chat thread creation,
   preference retrieval, and direct current-turn-only message writes.
 - [x] Validate supplied threads against the configured shared user. Exclude
@@ -20,14 +20,21 @@ Specification: [008-zep-recipe-retrieval.md](../specs/008-zep-recipe-retrieval.m
   preserving shared graph memory. Handle unavailable browser storage.
 - [x] Document configuration, SDK inspection, bulk-backfill boundaries, and
   manual memory/reload/new-chat testing.
+- [x] Save one local Markdown capture per handled chat request, ordered as query,
+  native context/results, complete final LLM input, and final output. Isolate
+  concurrent captures, retain partial failures, and keep files out of Git.
 - [x] Verify the final code:
-  - `poetry run python -m unittest discover -s tests -v`: 113 tests, one skipped;
+  - `.venv/bin/python -m unittest discover -s tests -q`: 127 tests, one skipped;
     exit 0.
   - `npm --prefix clients/bitesize test`: 35 passed.
   - `npm --prefix clients/bitesize run build`: passed.
   - `npm --prefix clients/bitesize run lint`: passed with the existing
     `useRecipes.jsx` Fast Refresh warning.
   - `git diff --check`: passed.
+  - A live recipe query wrote a Markdown capture. The materialized Zep context
+    matched the final tool output exactly, and the captured model answer matched
+    the application answer. The file contained no configured API keys and was
+    confirmed ignored by Git.
   - Live chat returned HTTP 200, a successful save status, and three cards. A
     separate SDK read confirmed both conversation messages in the created thread.
     The initial smoke assertion assumed their listing order; Zep gives this pair
@@ -35,8 +42,7 @@ Specification: [008-zep-recipe-retrieval.md](../specs/008-zep-recipe-retrieval.m
     recovery preserves local send order and does not depend on that listing.
   - Browser reload/reset is covered by storage/request tests, not an interactive
     browser check. No extraction polling or automatic retries were added.
-- [ ] User approval of the remaining code/test diff. The documentation updates
-  are committed on `main`; code/tests remain uncommitted and nothing is pushed.
+- [x] User authorized commit and push of the current uncommitted changes.
 
 ## Enforced ingredient exclusions
 
@@ -64,7 +70,7 @@ Regression coverage confirms there is no application ingredient filtering.
 
 ## Ingredient verification and temporal preference retrieval
 
-**Status:** Implemented; awaiting user review
+**Status:** Implemented; approved for commit and push
 
 - [x] Supply full original source episode recipes to the Zep answer model and
   build cards from those same records, without Postgres reads in discovery.
@@ -89,5 +95,4 @@ Regression coverage confirms there is no application ingredient filtering.
   filters remained accepted. No graph or conversation writes were made.
 - [x] Review the final Zep-only discovery changes. No blocking issues found;
   fixed null categories/tags in episode-derived cards with a regression test.
-- [ ] User approval of the remaining code/test diff. The documentation updates
-  are committed on `main`; code/tests remain uncommitted and nothing is pushed.
+- [x] User authorized commit and push of the remaining code/test diff.

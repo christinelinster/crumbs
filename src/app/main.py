@@ -1,5 +1,5 @@
 from app.db.connection import pool
-from app.rag.query import process_query
+from app.rag.query import process_query_result
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
                 print("\nThanks for using crumbs. Happy eating!")
                 return
             try:
-                response = process_query(
+                response = process_query_result(
                     question,
                     history,
                 )
@@ -24,7 +24,7 @@ def main():
                 print(f"\nUnable to answer: {error}")
                 continue
             print("\nCrumbs:")
-            print(response)
+            print(response.answer)
 
 if __name__ == "__main__":
     main()

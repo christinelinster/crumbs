@@ -25,7 +25,7 @@ class ModulePathsTests(unittest.TestCase):
 
         from app import settings
         from app.db import recipes
-        from app.rag import embeddings, query
+        from app.rag import embeddings, tools
 
         self.assertEqual(settings.DEFAULT_RECIPE_LIMIT, 3)
         self.assertEqual(settings.MAX_RECIPE_LIMIT, 10)
@@ -34,7 +34,7 @@ class ModulePathsTests(unittest.TestCase):
             recipes.DEFAULT_SIMILARITY_THRESHOLD,
             settings.DEFAULT_SIMILARITY_THRESHOLD,
         )
-        self.assertEqual(query.DEFAULT_RECIPE_LIMIT, settings.DEFAULT_RECIPE_LIMIT)
+        self.assertEqual(tools.DEFAULT_RECIPE_LIMIT, settings.DEFAULT_RECIPE_LIMIT)
         self.assertEqual(embeddings.EMBEDDING_MODEL, settings.EMBEDDING_MODEL)
         self.assertGreater(settings.EMBEDDING_DIMENSIONS, 0)
         self.assertTrue(settings.OPENAI_CHAT_MODEL)
@@ -148,10 +148,10 @@ assert state['executed'] == [
 ]
 
 from app.ingestion import import_recipes, load_embeddings
-from app.rag import embeddings, query
+from app.rag import embeddings, tools
 from app.db.recipes import save_recipe
 assert embeddings.EMBEDDING_MODEL == settings.EMBEDDING_MODEL
-assert query.DEFAULT_RECIPE_LIMIT == settings.DEFAULT_RECIPE_LIMIT
+assert tools.DEFAULT_RECIPE_LIMIT == settings.DEFAULT_RECIPE_LIMIT
 assert load_embeddings.save_recipe is save_recipe
 assert load_embeddings.load_embeddings.__defaults__ == (RECIPES_DIR,)
 paths = sorted(RECIPES_DIR.glob('*.md'))

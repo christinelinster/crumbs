@@ -1,4 +1,5 @@
 from io import StringIO
+from types import SimpleNamespace
 import unittest
 from unittest.mock import call, patch
 
@@ -6,23 +7,25 @@ from app.main import main
 
 
 class MainTests(unittest.TestCase):
-    @patch("app.main.process_query", side_effect=["first answer", "second answer"])
+    @patch("app.main.process_query_result", side_effect=[
+        SimpleNamespace(answer="first answer"), SimpleNamespace(answer="second answer"),
+    ])
     @patch("app.main.pool")
     @patch(
         "builtins.input",
         side_effect=["first question", "second question", "quit"],
     )
-    def test_main_reuses_one_history_list_for_process_lifetime(
-        self, input_mock, pool_mock, process_query_mock
+    def test_main_reuses_one_history_list_and_prints_query_answers(
+        self, input_mock, pool_mock, query_mock
     ):
         pool_mock.__enter__.return_value = pool_mock
 
         with patch("sys.stdout", new_callable=StringIO) as output:
             main()
 
-        self.assertEqual(process_query_mock.call_count, 2)
-        first_history = process_query_mock.call_args_list[0].args[1]
-        second_history = process_query_mock.call_args_list[1].args[1]
+        self.assertEqual(query_mock.call_count, 2)
+        first_history = query_mock.call_args_list[0].args[1]
+        second_history = query_mock.call_args_list[1].args[1]
         self.assertIs(first_history, second_history)
         self.assertEqual(first_history, [])
         self.assertEqual(input_mock.call_args_list, [call("\nUser: ")] * 3)

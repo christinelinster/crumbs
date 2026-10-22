@@ -1,29 +1,13 @@
-# Simple Zep experiment
+# Zep recipe context
 
-Three small modules, plus the existing settings file:
+Crumbs uses Zep's native context assembly for recipe discovery and optional
+shared preferences. Full source recipe snapshots supplement the context so the
+answer model can check every ingredient and instruction.
 
-```text
-src/app/zep/
-    client.py       # get_zep()
-    ingest.py       # recipe episodes and current-turn message writes
-    retrieval.py    # graph searches and original source recipe JSON
-```
+## Setup and recipe ingestion
 
-No worker, CLI framework, or database migration. Bitesize uses the same answer
-pipeline with a small Vector/Zep discovery branch and optional shared test memory.
-
-## Start
-
-From the project root:
-
-```bash
-poetry install
-poetry run python
-```
-
-Keep `ZEP_API_KEY` and `ZEP_GRAPH_UUID` in the ignored project `.env` file.
-For shared memory, also set `ZEP_USER_UUID`. Your existing graph and configured
-test user can be reused. In the Python console:
+Set `ZEP_API_KEY` and `ZEP_GRAPH_UUID` in the ignored `.env` file. For shared
+memory, also set `ZEP_USER_UUID`. Start a Python console with `poetry run python`:
 
 ```python
 from app import settings
@@ -33,20 +17,10 @@ client = get_zep()
 graph_uuid = settings.ZEP_GRAPH_UUID
 ```
 
-## Create graph
+Reuse the existing graph. If you need a separate graph, create one with
+`client.graph.create(name="Crumbs experiment")` and save its `uuid_` in `.env`.
 
-Only if you want a new graph:
-
-```python
-graph = client.graph.create(name="Crumbs experiment")
-print(graph)
-graph_uuid = graph.uuid_
-```
-
-Copy its UUID into `.env` for your next session. Recipe-only search does not need
-a user or thread. Shared memory uses the separate configured test user.
-
-## Add recipe
+Submit a full recipe snapshot:
 
 ```python
 from app.paths import RECIPES_DIR
@@ -54,194 +28,176 @@ from app.ingestion.load_embeddings import parse_recipe_file
 from app.zep.ingest import ingest_recipe
 
 recipe = parse_recipe_file(RECIPES_DIR / "creamy-tomato-pasta.md")
-result = ingest_recipe(client, graph_uuid, recipe)
-print(result)
+submission = ingest_recipe(client, graph_uuid, recipe)
+print(submission)
 ```
 
-The slug is passed as `document_id` so related episodes share a document. This
-is grouping, not deduplication: repeating the call creates another episode.
-Submission is asynchronous and does not prove extraction finished or facts
-changed. To explore changes, explicitly submit an edited recipe and inspect
-Zep's resulting facts and validity dates.
+Each submission preserves the complete JSON, groups revisions by slug in
+`document_id`, and records `recipe_slug` plus a SHA-256 `recipe_revision` in
+metadata. Repeated submissions create new episodes. Ingestion and extraction
+are asynchronous; inspect the returned task or the episode's processing status
+before expecting newly extracted facts in search. For an initial bulk backfill,
+use [zep-ingest](https://help.getzep.com/zep-ingest).
 
-For an initial bulk corpus backfill, use Zep's recommended
-[zep-ingest](https://help.getzep.com/zep-ingest) rather than building a custom
-bulk importer here. It is a separate optional package, not installed or run by
-this experiment. Individual submissions use the SDK directly. Nothing ingests
-the whole corpus automatically.
+Current retrieval filters invalidated/expired facts and resolves each candidate
+slug to the newest snapshot by creation time. Legacy episodes without revision
+metadata can only resolve among linked search sources; reingest those recipes
+to make all revisions discoverable. Explicit history questions can include
+superseded facts and the selected historical source episodes.
 
-## Inspect episode and graph
+## Inspect Zep's assembled context
+
+This is the same retrieval operation the application uses:
 
 ```python
-print(client.graph.episode.get(graph_uuid, result.episode.uuid_))
-print(client.graph.get(graph_uuid))
+from app.zep.retrieval import get_graph_context
+
+result = get_graph_context(client, graph_uuid, "Show me recipes without onions")
+print(result.context)                    # Exact Zep-generated context string
+print(result.truncated)                  # Whether the context budget was reached
+print(result.results.edges)
+print(result.results.nodes)
+print(result.results.observations)
+print(result.results.thread_summaries)
 ```
 
-Inspect the episode's `processed` field later. Open Zep's managed app and select
-the same project/graph UUID to see nodes, relationships, and source episodes.
-`graph.get` returns metadata, not a complete graph visualization.
+The helper calls `client.graph.get_context` with `max_characters=5000`,
+`include_results=True`, and current-fact filters. Zep chooses and ranks results
+across scopes and renders the context block. Its native headings and content
+are preserved verbatim; Crumbs does not manufacture preference/fact sections or
+apply a first-ten-facts cutoff. `selection_rank` identifies global selection
+order. The SDK response retains all selected result arrays, including empty arrays.
+See [Zep auto search](https://help.getzep.com/v4/searching-the-graph).
 
-## Search graph
+Follow selected source UUIDs back to the ingested recipe content:
 
 ```python
-from app.zep.retrieval import search_recipes
-
-query = "Which recipes use tomatoes?"
-edges = search_recipes(client, graph_uuid, query)
-print(edges.items)
-
-# Try the other SDK primitives directly, independently:
-print(client.graph.search_nodes(graph_uuid, query=query).items)
-print(client.graph.search_episodes(graph_uuid, query=query).items)
-print(client.graph.search_observations(graph_uuid, query=query).items)
+for edge in result.results.edges or []:
+    for episode_uuid in edge.episode_uuids or []:
+        episode = client.graph.episode.get(graph_uuid, episode_uuid)
+        print(episode.content)
 ```
 
-These are separate retrieval scopes. No common result abstraction or ranking
-policy is imposed. `.items` reads the first returned page; iterating the SDK
-pager may make additional requests. Inspect edge facts, timestamps, and source
-episode IDs directly.
+The application follows episode UUIDs on selected edges, nodes, and
+observations, fetches each UUID once, and selects full current recipe snapshots.
+Invalid JSON, incomplete recipes, and mismatched slugs are skipped. Zep-only
+discovery uses those snapshots for recipe cards and reads no Postgres data.
+Exact recipe detail tools and card pages use the canonical Postgres store.
 
-## Use Zep in Bitesize
+The final model checks hard exclusions against every ingredient/instruction
+section in the selected snapshots. An absent graph fact does not prove that
+an ingredient is absent. This check is performed by the answer model, so it
+is not a deterministic dietary guarantee. The 5000-character budget applies
+to Zep's context block; supplemental full recipes can make the final input larger.
 
-Start the API and UI in separate terminals from the project root:
+## Inspect the final LLM input
 
-```bash
-poetry run uvicorn app.api:app --port 3001
-```
+`include_results=True` is a Zep SDK option. Inspect `result.context` and
+`result.results` directly in the console example above.
 
-```bash
-npm --prefix clients/bitesize install
-npm --prefix clients/bitesize run dev
-```
+Every valid `/api/chat` request automatically saves one timestamped Markdown
+file in `.zep/requests/`, with these sections in order:
 
-Open the URL printed by Vite, open Ask Crumbs, and leave **Retrieval** set to
-**Zep graph**, the default. Recipe discovery now calls Zep's edge search and
-passes the first ten returned edge facts to the answer model alongside complete
-recipes parsed from their original Zep source episodes. The answer model uses
-the complete ingredient and instruction content to assess preferences. There is
-no application-side ingredient exclusion matcher, exclusion tool argument, or
-custom ingredient reranking. The same episode records supply recipe cards;
-Zep discovery does not read Postgres. Duplicate source episode IDs are fetched
-once and recipe slugs are deduplicated in source order. Invalid JSON, non-recipe
-content, and mismatched source/body slugs are skipped without a Postgres fallback.
-When writing the answer, the model also returns the slugs it actually offers.
-Bitesize shows only those cards, in answer order. There is no fixed card count:
-an answer offering one recipe gets one card; six offered recipes get six cards.
-No slugs are guessed from fact text. Exact recipe
-detail tools and opening a recipe card still use the canonical Postgres recipe
-store. General questions may be answered
-without a recipe retrieval tool.
+1. Original user query.
+2. Each exact Zep request, materialized context block, selected retrieval results,
+   and truncation status. Shared user context and recipe context are separate blocks.
+3. Complete final LLM request: model, instructions, conversation history,
+   router tool calls, tool outputs containing native context and full recipes,
+   and the structured output schema.
+4. Raw final model output, usage when available, and the application's response.
 
-Managed Zep provides semantic and BM25 search with default RRF ranking, plus
-temporal extraction/invalidation during ingestion. These do not implement
-ingredient exclusions from natural-language search text. Current-fact filters
-are supplied explicitly for preference retrieval.
+No request flag is required. For a direct answer, the final call is the router
+call and the context section says no Zep context was retrieved. Failed requests
+retain whatever was captured, including the last attempted model request and
+the error type. Invalid requests rejected before the handler runs have no file.
+Capture write failures are logged without breaking answer delivery.
 
-Choose **Vector RAG** to compare with the original discovery path. Changing the
-selector starts a fresh chat so earlier answers do not affect the comparison.
-Both modes use the same answer model. Zep errors are shown as errors and never
-silently switch to vectors. The graph must already contain processed recipes;
-chat does not ingest recipes. Conversation persistence is controlled separately
-by the shared-memory checkbox.
-
-The request sends `retrieval_backend: "zep"` or `"vector"` to `/api/chat`.
-Requests that omit it retain the original vector default for API compatibility.
-Bitesize explicitly sends its selected value, defaulting to Zep.
-
-The answer text and selected recipe IDs come from the same
-[structured answer response](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses),
-not a second model call or a scan of prose for recipe names. Unknown and repeated
-IDs cannot add extra cards. This applies to both retrieval backends. Previously
-saved browser messages retain their old cards; use New chat to test new replies.
-
-## Shared preferences and conversation history
-
-In Zep mode, enable **Use shared test memory**. Everyone shares this test user's
-preferences. The checkbox defaults off; the browser remembers your choice.
-With memory off, recipe retrieval and local follow-ups work without personal
-memory reads/writes. Only enabled turns are submitted to Zep.
-
-The backend creates a thread for the first enabled turn, retrieves remembered
-preference facts for the answer, then saves that turn's user and assistant
-messages. Preference search applies Zep's native date filters with
-`invalid_at is_null` AND `expired_at is_null`. This excludes facts Zep has
-already invalidated or superseded; it does not resolve contradictions still
-marked active in the graph. Assistant messages are stored as history but excluded
-from graph extraction. The UI says **Conversation saved to Zep** when that write succeeds;
-it does not claim extraction has finished or that the graph changed. A save
-error preserves the answer and shows a warning. There is no automatic retry.
-
-Try this after restarting the backend so it reads `ZEP_USER_UUID`:
-
-1. Select Zep graph and enable shared test memory.
-2. Say “I prefer mild food and avoid shrimp.” Wait for the answer/save status.
-3. Reload. The transcript, cards, toggle, and thread UUID restore from one browser
-   local-storage record. The next turn uses the same Zep thread.
-4. Click New chat. The transcript and thread pointer clear. The first enabled
-   message creates a new Zep thread for the same test user.
-5. Ask “What food preferences do you remember about me?” or request a recommendation.
-6. Later say “I now enjoy spicy food” and inspect the preference change in Zep.
-
-Graph extraction/indexing is asynchronous, so a preference may not be searchable
-immediately after its conversation is saved. Inspect processing in Zep's managed
-app before judging cross-chat memory. Saving a question need not add a new fact.
-
-Browser recovery is per browser, not cross-device synchronization. Zep keeps the
-submitted thread history remotely; the frontend restores its local transcript
-rather than downloading it from Zep. Disabled turns remain local. Toggling memory
-starts a fresh remote thread segment on the next enabled turn and never uploads
-prior disabled messages. New chat does not delete old Zep threads or preferences.
-An in-flight request interrupted by a reload is not automatically recovered.
-
-If a test user has not been created, create it once from the Python console and
-put the returned UUID in `.env`:
+The files contain full conversation history and source content. `.zep/` is
+ignored by Git; files remain locally until deleted. Authorization headers and
+API keys are not captured. Programmatic calls to `process_query_result` can be
+captured with the same local writer:
 
 ```python
-user = client.user.create(user_id="crumbs-shared-test", first_name="Shared test user")
-print(user.uuid_)
-```
-
-Do not recreate the existing configured user. A user graph is separate from the
-recipe graph and contains preferences across that user's threads. Both recipe
-and preference facts are supplied to the model; this does not enforce dietary
-constraints as database filters.
-
-## Compare both answer paths from Python
-
-With the usual PostgreSQL/OpenAI configuration and a loaded recipe store:
-
-```python
-from pprint import pprint
-from app.db.connection import pool
+from app.chat_capture import capture_chat
 from app.rag.query import process_query_result
 
-with pool:
-    for backend in ["vector", "zep"]:
-        result = process_query_result(query, [], retrieval_backend=backend)
-        print(backend)
-        pprint(result)
+with capture_chat(query) as capture:
+    result = process_query_result(query, [], retrieval_backend="zep")
+    capture["response"] = {"answer": result.answer, "recipe_cards": result.recipe_cards}
 ```
 
-Both branches return an answer and retrieved context. Vector results can include
-recipe cards; Zep results include raw graph facts and source recipe cards.
-Different corpus sizes and model variability mean
-this remains exploratory rather than a controlled ranking benchmark. The
-existing graph contains a starter subset of the full vector corpus.
+Recipe context is tool data, and shared user context is user data, never system
+or developer instructions. Selected raw results appear in the Markdown file;
+they do not duplicate the context in the final model prompt.
 
-Graphiti/Neo4j remain the later integration. No inactive Graphiti option is
-shown in the selector.
+For discovery, the order is: router model, recipe `get_context`, source episode
+resolution, final answer model. A direct router answer needs no recipe search
+or second model call. Recipe ingestion remains a separate operation.
 
-Existing graph data and credentials are preserved. Earlier experiment tables
-and local setup files may still exist; these three modules do not use or delete
-them. `ZEP_EXPERIMENT`, `ZEP_MEMORY_CREDIT_CAP`, and `RETRIEVAL_BACKEND` remain
-unused; the user UUID is now used only when shared memory is enabled.
+## Shared preferences
 
-## Verify locally
+In Bitesize, **Use shared test memory** enables memory for `ZEP_USER_UUID`.
+Everyone using it shares that test identity. Crumbs retrieves a separate native
+context block from the user graph before the router, passes it to both models,
+then saves only the current question/answer pair after answering. Assistant
+messages remain in history but are excluded from graph extraction. The recipe graph and user graph are queried separately.
+
+`client.thread.add_messages` returns asynchronous task and message IDs.
+Check progress later with `client.task.get(task_uuid)`.
+**Conversation saved to Zep** confirms the write, not completed extraction.
+Save failures preserve the answer and show a warning; writes are not retried.
+New preferences may take time to become searchable.
+
+The browser restores its transcript and thread UUID from local storage. New
+chat clears those local values without deleting remote memory. Turning memory
+off keeps those turns local; enabling it again starts a fresh thread segment.
+A reload during an unfinished request does not recover that request.
+
+## Ingestion debugging
+
+Use Zep's managed UI or the episode APIs for extraction workflow inspection.
+Enable [Debug Mode](https://help.getzep.com/v4/debug-mode) before ingestion;
+selected extraction/resolution traces require a supported plan. Debug Mode
+does not backfill old episodes. Follow `result.results` source episode UUIDs
+to the relevant ingestion diagnostics:
+
+```python
+print(client.graph.episode.get_debug_logs(graph_uuid, episode_uuid))
+for trace in client.graph.episode.list_ingestion_traces(graph_uuid, episode_uuid):
+    print(trace)
+```
+
+## Run and verify
+
+Start the API with `poetry run uvicorn app.api:app --port 3001`, then run
+`npm --prefix clients/bitesize run dev` in another terminal. Bitesize defaults to
+Zep; **Vector RAG** uses the existing vector retrieval path. API requests default
+to vector retrieval when `retrieval_backend` is omitted. Zep errors are surfaced
+without a vector fallback. Both modes return only the recipe cards selected in
+the same structured answer call, in answer order.
 
 ```bash
 poetry run python -m unittest discover -s tests -v
 ```
 
-Tests mock Zep and cover backend selection, graph evidence/cards, preferences,
-thread validation, save failures, and browser session restoration. Execute the console operations deliberately when you want to
-make live calls or submit paid ingestion work.
+Automated tests use mocked services and an SDK HTTP transport check. They cover
+native context preservation, selected result scopes, source snapshots, temporal
+resolution, exact final inputs, and shared memory ordering and failures.
+
+## Query and tool boundaries
+
+- `rag/query.py` owns conversation input, router/final model calls, capture data,
+  and the cards selected for the answer.
+- `rag/tools.py` owns tool schemas, dispatch, vector/Zep retrieval, and result
+  preparation. Vector search exposes `input`, `limit`, and `similar_to_slug`;
+  Zep search exposes `input` and `include_history`.
+- `db/recipes.py` owns SQL. Full recipe lookups and embedding lookups are separate.
+- `api.py` validates HTTP input, manages optional shared memory, and captures
+  each chat request. `main.py` is the CLI entry point to the same query function.
+
+A detail tool returns `{"recipe": null}` when the slug is missing. The final
+answer prompt explicitly treats this as not found and forbids substitute
+searches. Tool outputs omit arguments already present in the model's tool call.
+Vector search returns `matches` with per-match strength; a requested similarity
+anchor is an identity object, or `null` when missing. Zep search returns the
+native `context`, `truncated`, and full source `recipes`.

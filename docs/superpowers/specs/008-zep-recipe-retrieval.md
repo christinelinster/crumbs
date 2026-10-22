@@ -1,19 +1,22 @@
 # 008: Simple Zep recipe experiment
 
-**Status:** Implemented; awaiting user review
+**Status:** Implemented; approved for commit and push
 
-Keep the SDK integration small and readable, with three modules:
+Keep the SDK integration small and readable:
 
 - `client.py`: construct the Zep client from settings.
-- `ingest.py`: serialize/add a recipe and save the current conversation pair.
-- `retrieval.py`: recipe/preference searches and full source episode recipe lookup.
+- `ingest.py`: serialize/add a versioned recipe snapshot and save the current conversation pair.
+- `retrieval.py`: current/history searches and full source episode resolution.
+- `app/chat_capture.py`: one ordered local Markdown file per handled chat request.
 
 ## Recipe discovery
 
 Bitesize defaults to Zep graph search and also offers Vector RAG. The selected
 backend goes to the existing chat endpoint/orchestrator. The Zep search handler
-passes up to ten raw edge facts and complete original episode recipes to the
-answer model. A separate helper parses source episode JSON and identifies recipes using
+uses `graph.get_context(max_characters=5000, include_results=True)` and passes
+its unchanged context block plus complete source recipes to the answer model.
+The native response includes selected edges, nodes, observations, and thread summaries.
+Source episode UUIDs on edges, nodes, and observations identify full recipes. A separate helper parses source episode JSON and identifies recipes using
 `metadata.recipe_slug` or `document_id`; it never guesses a slug from generated
 text. The answer model checks complete ingredient/instruction content against
 the user's request and remembered preferences. No application-side ingredient
@@ -32,6 +35,12 @@ An answer offering no recipes returns no cards. Exact recipe
 details continue using the canonical recipe store. No Zep error silently falls
 back to vector retrieval.
 
+Recipe episodes retain their complete JSON snapshot, use the stable recipe slug
+as `document_id`, and record `recipe_slug` plus a content fingerprint in
+metadata. Current searches filter active facts and resolve each candidate slug
+to its newest ingested snapshot. Explicit recipe-history searches can include
+superseded facts and source episodes.
+
 Use the SDK directly for graph creation, episode/graph inspection, and separate
 edge/node/episode/observation searches. Keep a simple vector/Zep comparison loop.
 Inspect graph evidence and temporal facts in Zep's managed app. Bulk backfill
@@ -42,7 +51,7 @@ or running a bulk import is outside this integration.
 
 Shared memory is opt-in and uses `ZEP_USER_UUID`. Everyone shares this identity;
 there is no login or private ownership. For an enabled chat, create a Zep thread
-lazily, retrieve preference facts before answering, and save only the current
+lazily, retrieve a native user context block before routing, and save only the current
 user/assistant pair after answering. Assistant messages remain in thread history
 but are excluded from extraction. Verify supplied thread UUIDs belong to the
 configured test user.
@@ -66,14 +75,39 @@ Conversation save success is distinct from asynchronous graph extraction. A
 failed/unconfirmed save preserves the answer and reports its status. Do not
 retry writes automatically or poll processing status.
 
+## Native context inspection
+
+Use Zep's `include_results=True` to inspect the unchanged context block and
+selected result arrays. `/api/chat` has no custom trace flag or trace response.
+The final model receives that native context and full recipe JSON as tool data.
+Retrieved content is data, never system or developer instructions.
+
+Every valid `/api/chat` request writes a separate timestamped Markdown file in
+the Git-ignored `.zep/requests/` directory, ordered as user query, exact Zep
+requests/materialized blocks/results, complete final model input, and final
+model/application output. Direct answers capture the router as the final call.
+Failures preserve partial captures and the error type; disk-write errors are
+logged without changing answer delivery. Validation failures before the handler
+do not create files. Capture files include full conversation/source content and
+remain locally until deleted. Capture state is isolated between requests.
+
+The chat question is not added to the recipe graph before searching. Shared
+memory retrieves user context before routing and saves the current chat pair
+after answering. Use Zep's UI or episode debug APIs for asynchronous extraction
+inspection. Debug Mode must be enabled before ingestion and requires plan support.
+
 ## Boundaries and verification
 
-No workers, queues, budgets, ledgers, revisions, database migrations, or accounts.
+No workers, queues, budgets, ledgers, database migrations, or accounts. Recipe
+revision metadata is a content fingerprint; it does not add a recipe database
+or migration.
 Existing credentials, graph data, canonical recipes, and vector retrieval stay
 available. Graphiti and Neo4j remain the later integration.
 
 Tests cover answer/card selection and order, serialization, stable source IDs,
 backend routing, shared-user thread
 checks, preference context, current-turn-only writes, save failures, and browser
-session restoration/reset. Normal tests mock external services. Live checks are
-separate and use only the configured shared test identity.
+session restoration/reset. They also cover current recipe version selection,
+history retrieval, and native context reaching the final model input.
+Normal tests mock external services. Live checks are separate and use only the
+configured shared test identity.

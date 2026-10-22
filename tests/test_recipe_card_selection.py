@@ -15,9 +15,9 @@ class RecipeCardSelectionTests(unittest.TestCase):
         client.responses.parse.return_value = SimpleNamespace(output_parsed=SimpleNamespace(
             answer='The selected recipe recommendations.', recipe_slugs=selected_slugs,
         ))
-        tool_result = {'tool_name': 'get_recipes', 'retrieval_backend': backend, 'matches': []}
+        tool_result = {'context': '', 'recipes': []} if backend == 'zep' else {'matches': []}
         with patch('app.rag.query.OpenAI', return_value=client), patch(
-            'app.rag.query._execute_recipe_tool', return_value=(tool_result, cards),
+            'app.rag.query.execute_recipe_tool', return_value=(tool_result, cards),
         ):
             result = process_query_result('Dinner ideas?', [], retrieval_backend=backend)
         return result, client
@@ -48,7 +48,7 @@ class RecipeCardSelectionTests(unittest.TestCase):
         client.responses.create.return_value = SimpleNamespace(output=[SimpleNamespace(type='function_call', call_id='search-1')])
         client.responses.parse.return_value = SimpleNamespace(output_parsed=None)
         with patch('app.rag.query.OpenAI', return_value=client), patch(
-            'app.rag.query._execute_recipe_tool', return_value=({'matches': []}, [{'slug': 'one', 'title': 'One'}]),
+            'app.rag.query.execute_recipe_tool', return_value=({'matches': []}, [{'slug': 'one', 'title': 'One'}]),
         ):
             with self.assertRaises(ValueError):
                 process_query_result('Dinner?', [])
