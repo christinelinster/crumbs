@@ -17,7 +17,8 @@ dependencies = [
     "uvicorn (>=0.35.0,<0.36.0)",
     "beautifulsoup4 (>=4.15.0,<5.0.0)",
     "pyyaml (>=6.0.3,<7.0.0)",
-    "zep-cloud (==4.0.0)"
+    "zep-cloud (==4.0.0)",
+    "graphiti-core (>=0.31.2,<0.32.0)"
 ]
 
 [tool.poetry]
