@@ -1,39 +1,24 @@
-"""Direct SDK writes for recipe episodes and current conversation turns."""
-import hashlib
-import json
+"""Submit recipe Markdown to Zep's default extraction pipeline."""
+from pathlib import Path
+
+from app.chat_capture import write_ingestion_report
 
 
-def serialize_recipe(recipe):
-    return json.dumps(recipe, ensure_ascii=False)
-
-
-def ingest_recipe(client, graph_uuid, recipe):
-    serialized_recipe = serialize_recipe(recipe)
-    canonical_recipe = json.dumps(
-        recipe,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    revision = hashlib.sha256(canonical_recipe.encode("utf-8")).hexdigest()
-    return client.graph.episode.add(
-        graph_uuid,
-        type="json",
-        data=serialized_recipe,
-        document_id=recipe["slug"],
-        metadata={"recipe_slug": recipe["slug"], "recipe_revision": revision},
-        source_description="Crumbs recipe",
-    )
-
-
-def save_messages(client, thread_uuid, question, answer):
-    from zep_cloud import AddMessage
-
-    return client.thread.add_messages(
-        thread_uuid,
-        messages=[
-            AddMessage(role='user', content=question),
-            AddMessage(role='assistant', content=answer),
-        ],
-        ignore_roles=['assistant'],
-    )
+def ingest_recipe(client, graph_uuid, path: Path):
+    markdown = path.read_text(encoding='utf-8')
+    report = {
+        'graph_uuid': graph_uuid, 'source_path': str(path),
+        'source_markdown': markdown, 'extraction': 'Zep-managed defaults',
+    }
+    try:
+        result = client.graph.episode.add(
+            graph_uuid, type='text', data=markdown,
+            document_id=path.stem, source_description='Crumbs recipe Markdown',
+        )
+        report.update(status='submitted; extraction is asynchronous', submission=result)
+        return result
+    except Exception as error:
+        report.update(status='submission failed', error={'type': type(error).__name__})
+        raise
+    finally:
+        write_ingestion_report('zep', report)

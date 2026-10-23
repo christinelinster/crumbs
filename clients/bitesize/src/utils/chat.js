@@ -1,4 +1,4 @@
-export function buildChatRequest(question, messages, recipeSlug = null, retrievalBackend = null, memory = {}) {
+export function buildChatRequest(question, messages, recipeSlug = null, retrievalBackend = null, threads = {}) {
   const request = {
     question: question.trim(),
     history: messages.map(({ role, content, recipeCards }) => {
@@ -24,9 +24,13 @@ export function buildChatRequest(question, messages, recipeSlug = null, retrieva
 
   if (recipeSlug) request.recipe_slug = recipeSlug
   if (retrievalBackend) request.retrieval_backend = retrievalBackend
-  if (memory.sharedMemory) {
+  if (retrievalBackend === 'zep') {
     request.shared_memory = true
-    if (memory.threadUuid) request.thread_uuid = memory.threadUuid
+    if (threads.threadUuid) request.thread_uuid = threads.threadUuid
+  }
+  if (retrievalBackend === 'graphiti') {
+    request.graphiti_memory = true
+    if (threads.graphitiThreadUuid) request.graphiti_thread_uuid = threads.graphitiThreadUuid
   }
   return request
 }
@@ -59,6 +63,7 @@ export function appendAssistantMessage(messages, response) {
       content: response.answer,
       recipeCards: response.recipe_cards ?? [],
       ...(response.memory_status ? { memoryStatus: response.memory_status } : {}),
+      ...(response.graphiti_memory_status ? { graphitiMemoryStatus: response.graphiti_memory_status } : {}),
     },
   ]
 }
@@ -168,7 +173,10 @@ export function parseAssistantContent(content) {
 const CHAT_SESSION_KEY = 'crumbs-chat-v1'
 
 export function newChatSession(previous = {}) {
-  return { retrievalBackend: 'zep', sharedMemory: false, ...previous, messages: [], threadUuid: null }
+  return {
+    retrievalBackend: previous.retrievalBackend ?? 'zep',
+    messages: [], threadUuid: null, graphitiThreadUuid: null,
+  }
 }
 
 export function loadChatSession(storage) {
@@ -182,8 +190,9 @@ export function loadChatSession(storage) {
           ? { ...message, recipeCards: Array.isArray(message.recipeCards) ? message.recipeCards : [] }
           : message),
         threadUuid: typeof saved.threadUuid === 'string' ? saved.threadUuid : null,
-        sharedMemory: saved.sharedMemory === true,
-        retrievalBackend: saved.retrievalBackend === 'vector' ? 'vector' : 'zep',
+        graphitiThreadUuid: typeof saved.graphitiThreadUuid === 'string' ? saved.graphitiThreadUuid : null,
+        retrievalBackend: ['vector', 'zep', 'graphiti'].includes(saved.retrievalBackend)
+          ? saved.retrievalBackend : 'zep',
       }
     }
   } catch { /* Missing or blocked storage leaves chat usable. */ }

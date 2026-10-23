@@ -1,6 +1,9 @@
 # 008: Simple Zep recipe experiment
 
-**Status:** Implemented; approved for commit and push
+**Status:** Superseded in part by [009-native-graph-comparison.md](009-native-graph-comparison.md).
+
+Historical implementation: the JSON ingestion, revision resolution, graph recipe
+cards, and tracing requirements below are replaced by specification 009.
 
 Specification: [008-zep-recipe-retrieval.md](../specs/008-zep-recipe-retrieval.md).
 
@@ -70,7 +73,10 @@ Regression coverage confirms there is no application ingredient filtering.
 
 ## Ingredient verification and temporal preference retrieval
 
-**Status:** Implemented; approved for commit and push
+**Status:** Superseded in part by [009-native-graph-comparison.md](009-native-graph-comparison.md).
+
+Historical implementation: the JSON ingestion, revision resolution, graph recipe
+cards, and tracing requirements below are replaced by specification 009.
 
 - [x] Supply full original source episode recipes to the Zep answer model and
   build cards from those same records, without Postgres reads in discovery.

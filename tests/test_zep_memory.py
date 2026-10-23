@@ -21,16 +21,21 @@ class SharedMemoryTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        capture_patch = patch('app.chat_capture.CAPTURE_DIR', Path(directory.name))
-        capture_patch.start()
-        self.addCleanup(capture_patch.stop)
+        self.zep_capture_dir = Path(directory.name) / 'zep'
+        self.graphiti_capture_dir = Path(directory.name) / 'graphiti'
+        for capture_patch in (
+            patch('app.chat_capture.CAPTURE_DIR', self.zep_capture_dir),
+            patch('app.chat_capture.GRAPHITI_CAPTURE_DIR', self.graphiti_capture_dir),
+        ):
+            capture_patch.start()
+            self.addCleanup(capture_patch.stop)
         self.zep = Mock()
         self.zep.thread.create.return_value = SimpleNamespace(uuid_=THREAD_UUID)
         self.zep.thread.get.return_value = SimpleNamespace(user_uuid=USER_UUID)
         self.memory_context = '<User Preferences>User avoids shrimp.</User Preferences>'
         self.zep.graph.get_context.return_value = zep_context(context=self.memory_context)
         self.patches = [
-            patch('app.api.get_zep', return_value=self.zep),
+            patch('app.zep.memory.get_zep', return_value=self.zep),
             patch('app.api.settings.ZEP_USER_UUID', USER_UUID),
             patch('app.api.get_graph_context', wraps=get_graph_context),
             patch('app.api.process_query_result', return_value=QueryResult('Try tofu.', [], [])),
@@ -50,7 +55,8 @@ class SharedMemoryTests(unittest.TestCase):
         self.assertEqual(response.json()['thread_uuid'], THREAD_UUID)
         self.assertEqual(response.json()['memory_status'], 'saved')
         self.zep.thread.create.assert_called_once_with(user_uuid=USER_UUID)
-        self.assertEqual(self.mocks[3].call_args.kwargs['memory_context'], self.memory_context)
+        self.assertIsNone(self.mocks[3].call_args.kwargs['memory_context'])
+        self.mocks[2].assert_not_called()
         args, kwargs = self.zep.thread.add_messages.call_args
         self.assertEqual(args, (THREAD_UUID,))
         self.assertEqual([(m.role, m.content) for m in kwargs['messages']],
@@ -67,6 +73,12 @@ class SharedMemoryTests(unittest.TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertEqual([call[0] for call in ordered.mock_calls], ['context', 'answer', 'save'])
+        trace = next(self.zep_capture_dir.glob('*.md')).read_text()
+        self.assertIn('User Preferences', trace)
+        self.assertEqual(
+            list(self.graphiti_capture_dir.glob('*.md')) if self.graphiti_capture_dir.exists() else [],
+            [],
+        )
 
     def test_reload_reuses_thread_and_memory_off_makes_no_personal_calls(self):
         response = self.http.post('/api/chat', json={

@@ -1,8 +1,9 @@
 """Read-only recipe tools available to the chat model."""
 
+import asyncio
 import json
 
-from app import settings
+from app.chat_capture import current_capture
 from app.db.recipes import (
     RECIPE_SUMMARY_FIELDS,
     find_similar_recipes,
@@ -10,8 +11,8 @@ from app.db.recipes import (
     get_recipe_embedding,
 )
 from app.rag.embeddings import generate_embedding
-from app.zep.client import get_zep
-from app.zep.retrieval import get_graph_context, get_source_recipes
+from app.graphiti.retrieval import search_recipes as search_graphiti_recipes
+from app.zep.retrieval import search_recipes as search_zep_recipes
 
 from app.settings import (
     DEFAULT_RECIPE_LIMIT,
@@ -89,26 +90,19 @@ def get_recipe_tools(retrieval_backend):
     """Expose only the arguments supported by the selected search backend."""
     if retrieval_backend == "vector":
         return RECIPE_TOOLS
-    if retrieval_backend != "zep":
-        raise ValueError("unknown retrieval backend")
+    if retrieval_backend not in {'zep', 'graphiti'}:
+        raise ValueError('unknown retrieval backend')
     search = RECIPE_TOOLS[1]
-    return [RECIPE_TOOLS[0], {
+    return [{
         **search,
-        "description": (
-            "Search the recipe graph. Preserve recipe names, constraints, "
-            "requested counts, and similarity anchors in input. Search current "
-            "recipes by default; set include_history=true for explicit history "
-            "questions. Returns Zep context and full recipe snapshots."
+        'description': (
+            "Search the shared recipe graph and Christine's user graph for recipe discovery, "
+            "specific recipe details, or food-preference questions. Recipe and user context "
+            "are returned separately; recipe results include their original Markdown sources."
         ),
-        "parameters": {
-            **search["parameters"],
-            "properties": {
-                "input": search["parameters"]["properties"]["input"],
-                "include_history": {
-                    "type": "boolean",
-                    "description": "Include superseded recipe facts for explicit history questions.",
-                },
-            },
+        'parameters': {
+            **search['parameters'],
+            'properties': {'input': search['parameters']['properties']['input']},
         },
     }]
 
@@ -213,37 +207,6 @@ def _execute_search_tool(
     return result, build_recipe_cards(presented)
 
 
-def _execute_zep_search_tool(arguments):
-    """Use Zep's native context and follow selected sources to full recipes."""
-    zep = get_zep()
-    graph_uuid = settings.ZEP_GRAPH_UUID
-    include_history = bool(arguments.get("include_history", False))
-    result = get_graph_context(
-        zep,
-        graph_uuid,
-        arguments["input"],
-        include_history=include_history,
-    )
-    sources = []
-    if result.results is not None:
-        sources = [
-            *(result.results.edges or []),
-            *(result.results.nodes or []),
-            *(result.results.observations or []),
-        ]
-    recipes = get_source_recipes(
-        zep,
-        graph_uuid,
-        (uuid for source in sources for uuid in source.episode_uuids or []),
-        include_history=include_history,
-    )
-    return {
-        "context": result.context,
-        "truncated": result.truncated,
-        "recipes": recipes,
-    }
-
-
 def execute_recipe_tool(
     call,
     *,
@@ -254,12 +217,26 @@ def execute_recipe_tool(
     if call.name not in {"get_recipe_detail", "get_recipes"}:
         raise ValueError(f"unknown recipe tool: {call.name}")
     arguments = json.loads(call.arguments)
+    if retrieval_backend in {'zep', 'graphiti'}:
+        if call.name != 'get_recipes':
+            raise ValueError('Graph backends support only native graph search')
+        capture = current_capture.get()
+        entry = {'backend': retrieval_backend, 'tool_name': call.name,
+                 'call_id': call.call_id, 'arguments': arguments, 'result': None}
+        if capture is not None:
+            capture['tool_results'].append(entry)
+            capture[f'{retrieval_backend}_used'] = True
+        try:
+            result = (asyncio.run(search_graphiti_recipes(arguments['input']))
+                      if retrieval_backend == 'graphiti' else search_zep_recipes(arguments['input']))
+            entry['result'] = result
+            entry['delivery'] = 'retrieved but not submitted'
+            return result, []
+        except Exception as error:
+            entry['error'] = {'type': type(error).__name__}
+            raise RuntimeError(f'{retrieval_backend} retrieval unavailable') from error
     if call.name == "get_recipe_detail":
         with database_pool.connection() as conn:
             recipe = get_recipe_by_slug(conn, arguments["slug"])
         return {"recipe": recipe}, []
-    if retrieval_backend == "zep":
-        result = _execute_zep_search_tool(arguments)
-        cards = build_recipe_cards(result["recipes"])
-        return result, cards
     return _execute_search_tool(client, database_pool, arguments)

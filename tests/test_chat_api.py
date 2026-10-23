@@ -191,10 +191,14 @@ class ChatApiTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        self.capture_dir = Path(directory.name)
-        capture_patch = patch('app.chat_capture.CAPTURE_DIR', self.capture_dir)
-        capture_patch.start()
-        self.addCleanup(capture_patch.stop)
+        self.capture_dir = Path(directory.name) / 'zep'
+        self.graphiti_capture_dir = Path(directory.name) / 'graphiti'
+        for capture_patch in (
+            patch('app.chat_capture.CAPTURE_DIR', self.capture_dir),
+            patch('app.chat_capture.GRAPHITI_CAPTURE_DIR', self.graphiti_capture_dir),
+        ):
+            capture_patch.start()
+            self.addCleanup(capture_patch.stop)
         self.openai_patch = patch("app.rag.query.OpenAI")
         self.openai_mock = self.openai_patch.start()
         self.addCleanup(self.openai_patch.stop)
@@ -277,6 +281,8 @@ class ChatApiTests(unittest.TestCase):
             "recipe_cards": [],
             "thread_uuid": None,
             "memory_status": None,
+            "graphiti_thread_uuid": None,
+            "graphiti_memory_status": None,
         })
         self.assertEqual(connection.calls, [])
         self.assertEqual(database_pool.connection_count, 0)
@@ -284,205 +290,74 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual(database_pool.exit_count, 1)
         self.assertEqual(client.close_calls, 1)
 
-    def test_zep_discovery_supplies_full_source_recipes_and_cards_without_postgres_or_vectors(self):
+    def test_native_zep_markdown_and_both_contexts_reach_answer_without_cards(self):
         from unittest.mock import Mock
-        edge = {"fact": "Steamed Eggs use eggs.", "episode_uuids": ["episode-1"]}
         zep = Mock()
-        zep.graph.episode.list.return_value = []
+        recipe_context = zep_context([{'fact': 'Eggs use eggs.', 'episode_uuids': ['episode-1']}])
+        user_context = zep_context(context='Christine avoids garlic.')
+        zep.graph.get_context.side_effect = [recipe_context, user_context]
+        markdown = '# Steamed Eggs\n\n## Ingredients\n- 2 eggs\n- 1 cup water\n\n## Instructions\nSteam gently.'
         zep.graph.episode.get.return_value = SimpleNamespace(
-            metadata={"recipe_slug": "steamed-eggs"}, document_id="recipe-revision",
-            content=json.dumps(dict(zip(RECIPE_REPOSITORY_DETAIL_FIELDS, RECIPE_ROW[:-1]))),
+            graph_uuid='graph-1', document_id='steamed-eggs', content=markdown,
         )
         chat = FakeChatClient(responses=[
-            provider_response(tool_calls=[provider_tool_call(
-                "get_recipes", {"input": "egg recipes"},
-            )], finish_reason="tool_calls"),
-            provider_response(content="Try Steamed Eggs.", recipe_slugs=["steamed-eggs"]),
+            provider_response(tool_calls=[provider_tool_call('get_recipes', {'input': 'egg recipes'})]),
+            provider_response(content='Try Steamed Eggs.'),
         ])
         client = FakeClient(chat=chat)
         database_pool = FakePool(FakeConnection())
         with self.http_app(database_pool, client) as http, patch(
-            "app.rag.tools.get_zep", return_value=zep,
-        ), patch("app.rag.tools.get_graph_context", return_value=zep_context([edge])) as search, patch(
-            "app.rag.tools.settings.ZEP_GRAPH_UUID", "graph-1",
-        ):
-            response = http.post("/api/chat", json={
-                "question": "egg recipes", "retrieval_backend": "zep",
+            'app.zep.retrieval.get_zep', return_value=zep,
+        ), patch.multiple('app.zep.retrieval.settings', ZEP_GRAPH_UUID='graph-1', ZEP_USER_UUID='user-1'):
+            response = http.post('/api/chat', json={
+                'question': 'egg recipes', 'retrieval_backend': 'zep',
+                'history': [{'role': 'user', 'content': 'I want breakfast.'}],
             })
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["recipe_cards"][0]["slug"], "steamed-eggs")
-        self.assertIsNone(response.json()["recipe_cards"][0]["similarity_score"])
-        zep.graph.episode.get.assert_called_once_with("graph-1", "episode-1")
-
-        search.assert_called_once_with(
-            zep, "graph-1", "egg recipes", include_history=False,
-        )
-        self.assertEqual(client.embedding.calls, [])
-        self.assertEqual(database_pool.connection_count, 0)
-        tool_output = json.loads(chat.calls[1]["input"][-1]["output"])
-        self.assertEqual(tool_output["context"], zep_context().context)
-        self.assertEqual(tool_output["recipes"][0]["ingredient_sections"], [
-            {"kind": "group", "name": "Egg mixture", "items": ["2 eggs", "1 cup water"]},
-        ])
-        self.assertEqual(tool_output["recipes"][0]["instruction_sections"], [
-            {"kind": "ungrouped", "name": None, "items": ["Whisk the eggs.", "Steam until set."]},
-        ])
-
-    def test_native_zep_context_reaches_final_model_without_custom_trace(self):
-        from unittest.mock import Mock
-        edge = {"fact": "Steamed Eggs use eggs.", "episode_uuids": ["episode-1"]}
-        recipe = dict(zip(RECIPE_REPOSITORY_DETAIL_FIELDS, RECIPE_ROW[:-1]))
-        episode = SimpleNamespace(
-            metadata={"recipe_slug": "steamed-eggs", "recipe_revision": "rev-1"},
-            document_id="steamed-eggs", content=json.dumps(recipe),
-            uuid_="episode-1", created_at="2026-10-10T00:00:00Z",
-        )
-        zep = Mock()
-        context_result = zep_context([edge])
-        zep.graph.get_context.return_value = context_result
-        zep.graph.episode.get.return_value = episode
-        zep.graph.episode.list.return_value = [episode]
-        chat = FakeChatClient(responses=[
-            provider_response(tool_calls=[provider_tool_call(
-                "get_recipes", {"input": "egg recipes"},
-            )]),
-            provider_response(content="Try Steamed Eggs.", recipe_slugs=["steamed-eggs"]),
-        ])
-        client = FakeClient(chat=chat)
-        with self.http_app(FakePool(FakeConnection()), client) as http, patch(
-            "app.rag.tools.get_zep", return_value=zep,
-        ), patch("app.rag.tools.settings.ZEP_GRAPH_UUID", "graph-1"):
-            response = http.post("/api/chat", json={
-                "question": "egg recipes", "retrieval_backend": "zep",
-            })
-
-        from app.api import ChatRequest, ChatResponse
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("trace", response.json())
-        self.assertNotIn("include_trace", ChatRequest.model_fields)
-        self.assertNotIn("trace", ChatResponse.model_fields)
-        request = zep.graph.get_context.call_args.kwargs
-        self.assertEqual(request["query"], "egg recipes")
-        self.assertTrue(request["include_results"])
-        self.assertEqual(request["max_characters"], 5000)
-        final_tool_output = json.loads(chat.calls[1]["input"][-1]["output"])
-        self.assertEqual(final_tool_output["context"], context_result.context)
-        self.assertEqual(final_tool_output["recipes"][0]["ingredient_sections"], recipe["ingredient_sections"])
-        self.assertEqual(final_tool_output["recipes"][0]["instruction_sections"], recipe["instruction_sections"])
-        zep.graph.episode.get.assert_called_once_with("graph-1", "episode-1")
-
-        from fastapi.encoders import jsonable_encoder
-        content = next(self.capture_dir.glob('*.md')).read_text()
-        self.assertIn(context_result.context, content)
-        self.assertIn('"query": "egg recipes"', content)
-        captured_input = json.loads(content.split('## 3. Final LLM input\n')[1].split('```json\n')[1].split('\n```')[0])
-        self.assertEqual(captured_input['instructions'], chat.calls[1]['instructions'])
-        self.assertEqual(captured_input['input'], jsonable_encoder(chat.calls[1]['input'], exclude_unset=True))
-        self.assertEqual(captured_input['text_format']['schema'], query_module.RecipeAnswer.model_json_schema())
-        self.assertIn('"text": "Try Steamed Eggs."', content.split('## 4. Final output')[1])
-
-    def test_zep_discovery_supplies_raw_ingredients_missing_from_graph_facts(self):
-        from unittest.mock import Mock
-        edge = {
-            "fact": "Steamed Eggs are a Chinese breakfast.",
-            "episode_uuids": ["episode-1"],
-        }
-        zep = Mock()
-        zep.graph.episode.list.return_value = []
-        for ingredients in (
-            ["2 eggs", "1 clove garlic"],
-            ["2 eggs", "1 tsp garlic powder"],
-            ["2 eggs", "1 onion"],
-        ):
-            with self.subTest(ingredients=ingredients):
-                recipe = dict(zip(RECIPE_REPOSITORY_DETAIL_FIELDS, RECIPE_ROW[:-1]))
-                recipe.pop('ingredient_sections')
-                recipe.pop('instruction_sections')
-                recipe['ingredients'] = ingredients
-                recipe['instructions'] = ['Whisk the eggs and remaining ingredients.']
-                zep.graph.episode.get.return_value = SimpleNamespace(
-                    metadata={'recipe_slug': 'steamed-eggs'}, document_id='steamed-eggs',
-                    content=json.dumps(recipe),
-                )
-                chat = FakeChatClient(responses=[
-                    provider_response(tool_calls=[provider_tool_call(
-                        "get_recipes", {"input": "breakfast without onions or garlic"},
-                    )]),
-                    provider_response(content="No suitable recipes found.", recipe_slugs=[]),
-                ])
-                database_pool = FakePool(FakeConnection())
-                with self.http_app(database_pool, FakeClient(chat=chat)) as http, patch(
-                    "app.rag.tools.get_zep", return_value=zep,
-                ), patch("app.rag.tools.get_graph_context", return_value=zep_context([edge])):
-                    response = http.post('/api/chat', json={
-                        'question': 'Breakfast without onions or garlic?', 'retrieval_backend': 'zep',
-                    })
-                self.assertEqual(response.status_code, 200)
-                output = json.loads(chat.calls[1]['input'][-1]['output'])
-                self.assertEqual(output['recipes'][0]['ingredients'], ingredients)
-                self.assertEqual(output['recipes'][0]['instructions'], ['Whisk the eggs and remaining ingredients.'])
-                self.assertEqual(output['context'], zep_context().context)
-                self.assertEqual(database_pool.connection_count, 0)
-                self.assertEqual(response.json()['recipe_cards'], [])
-
-    def test_zep_discovery_does_not_offer_malformed_source_episodes_or_fall_back_to_postgres(self):
-        from unittest.mock import Mock
-        edge = {'fact': 'A missing recipe uses eggs.', 'episode_uuids': ['episode-1']}
-        zep = Mock()
-        zep.graph.episode.get.return_value = SimpleNamespace(metadata=None, document_id='missing', content='not JSON')
-        chat = FakeChatClient(responses=[
-            provider_response(tool_calls=[provider_tool_call('get_recipes', {'input': 'eggs'})]),
-            provider_response(content='No suitable recipes found.', recipe_slugs=['missing']),
-        ])
-        database_pool = FakePool(FakeConnection(row=RECIPE_ROW[:-1]))
-        with self.http_app(database_pool, FakeClient(chat=chat)) as http, patch(
-            'app.rag.tools.get_zep', return_value=zep,
-        ), patch('app.rag.tools.get_graph_context', return_value=zep_context([edge])):
-            response = http.post('/api/chat', json={'question': 'Eggs?', 'retrieval_backend': 'zep'})
-        self.assertEqual(response.status_code, 200)
-        output = json.loads(chat.calls[1]['input'][-1]['output'])
-        self.assertEqual(output.get('recipes'), [])
+        self.assertEqual(response.json()['answer'], 'Try Steamed Eggs.')
         self.assertEqual(response.json()['recipe_cards'], [])
         self.assertEqual(database_pool.connection_count, 0)
+        self.assertEqual(client.embedding.calls, [])
+        self.assertEqual([c.kwargs['graph_uuid'] for c in zep.graph.get_context.call_args_list], ['graph-1', 'user-1'])
+        zep.thread.add_messages.assert_not_called()
+        zep.graph.episode.get.assert_called_once_with('graph-1', 'episode-1')
+        final = json.loads(chat.calls[1]['input'][-1]['output'])
+        self.assertEqual(final['recipe_context'], recipe_context.context)
+        self.assertEqual(final['user_context'], user_context.context)
+        self.assertEqual(final['sources'][0]['markdown'], markdown)
+        self.assertEqual([t['name'] for t in chat.calls[0]['tools']], ['get_recipes'])
+        self.assertEqual(chat.calls[0]['input'][0]['content'], 'I want breakfast.')
+        trace = next(self.capture_dir.glob('*.md')).read_text()
+        for text in ('recipe graph', 'user graph', 'Christine avoids garlic.',
+                     'Supplemental recipe source fetches', 'Router LLM input',
+                     'Router LLM output', '## 3. Final LLM input', 'Try Steamed Eggs.'):
+            self.assertIn(text, trace)
+        captured_input = json.loads(trace.split('## 3. Final LLM input\n')[1].split('```json\n')[1].split('\n```')[0])
+        from fastapi.encoders import jsonable_encoder
+        self.assertEqual(captured_input['input'], jsonable_encoder(chat.calls[1]['input'], exclude_unset=True))
+        self.assertEqual(captured_input['instructions'], chat.calls[1]['instructions'])
+        self.assertFalse(list(self.graphiti_capture_dir.glob('*.md')))
 
-    def test_zep_candidates_reach_model_without_application_ingredient_filtering(self):
+    def test_zep_source_failure_preserves_partial_trace_without_fallback(self):
         from unittest.mock import Mock
         zep = Mock()
-        zep.graph.episode.list.return_value = []
-        edges = []
-        episodes = []
-        for slug, ingredients in (
-            ('garlic-eggs', ['2 eggs', '1 tsp garlic powder']),
-            ('plain-eggs', ['2 eggs', 'water']),
-        ):
-            edge = {'fact': f'{slug} is tasty.', 'episode_uuids': [slug]}
-            edges.append(edge)
-            recipe = dict(zip(RECIPE_REPOSITORY_DETAIL_FIELDS, RECIPE_ROW[:-1]))
-            recipe.update(slug=slug, ingredient_sections=[{'kind': 'ungrouped', 'name': None, 'items': ingredients}])
-            episodes.append(SimpleNamespace(metadata=None, document_id=slug, content=json.dumps(recipe)))
-        zep.graph.episode.get.side_effect = episodes
-        chat = FakeChatClient(responses=[
-            provider_response(tool_calls=[provider_tool_call('get_recipes', {
-                'input': 'eggs without garlic',
-            })]),
-            provider_response(content='Try plain eggs.', recipe_slugs=['plain-eggs']),
-        ])
+        zep.graph.get_context.return_value = zep_context([{'fact': 'Eggs.', 'episode_uuids': ['ep']}])
+        zep.graph.episode.get.side_effect = RuntimeError('private source error')
+        chat = FakeChatClient(responses=[provider_response(tool_calls=[provider_tool_call('get_recipes', {'input': 'eggs'})])])
         database_pool = FakePool(FakeConnection())
-        with self.http_app(database_pool, FakeClient(chat=chat)) as http, patch(
-            'app.rag.tools.get_zep', return_value=zep,
-        ), patch('app.rag.tools.get_graph_context', return_value=zep_context(edges)):
-            response = http.post('/api/chat', json={
-                'question': 'Egg recipes without garlic', 'retrieval_backend': 'zep',
-            })
-        self.assertEqual(response.status_code, 200)
-        output = json.loads(chat.calls[1]['input'][-1]['output'])
-        self.assertEqual([r['slug'] for r in output['recipes']], ['garlic-eggs', 'plain-eggs'])
-        self.assertEqual(output['context'], zep_context().context)
-        self.assertNotIn('excluded_ingredients', output)
-        search_tool = next(tool for tool in chat.calls[0]['tools'] if tool['name'] == 'get_recipes')
-        self.assertNotIn('excluded_ingredients', search_tool['parameters']['properties'])
-        self.assertEqual([c['slug'] for c in response.json()['recipe_cards']], ['plain-eggs'])
+        client = FakeClient(chat=chat)
+        with self.http_app(database_pool, client) as http, patch('app.zep.retrieval.get_zep', return_value=zep), patch.multiple(
+            'app.zep.retrieval.settings', ZEP_GRAPH_UUID='recipes', ZEP_USER_UUID='user',
+        ):
+            response = http.post('/api/chat', json={'question': 'eggs', 'retrieval_backend': 'zep'})
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn('private', response.text)
         self.assertEqual(database_pool.connection_count, 0)
+        self.assertEqual(client.embedding.calls, [])
+        trace = next(self.capture_dir.glob('*.md')).read_text()
+        self.assertIn('RuntimeError', trace)
+        self.assertIn('Supplemental recipe source fetches', trace)
+        self.assertEqual(len(chat.calls), 1)
 
     def test_remembered_preferences_reach_both_router_and_answer_model(self):
         chat = FakeChatClient(responses=[
@@ -510,9 +385,9 @@ class ChatApiTests(unittest.TestCase):
         client = FakeClient(chat=chat)
         database_pool = FakePool(FakeConnection(rows=[RECIPE_ROW]))
         with self.http_app(database_pool, client) as http, patch(
-            "app.rag.tools.settings.ZEP_GRAPH_UUID", "graph-1",
-        ), patch("app.rag.tools.get_zep"), patch(
-            "app.rag.tools.get_graph_context", side_effect=ApiError(status_code=503, body="secret"),
+            "app.zep.retrieval.settings.ZEP_GRAPH_UUID", "graph-1",
+        ), patch("app.zep.retrieval.settings.ZEP_USER_UUID", "user-1"), patch(
+            "app.zep.retrieval.get_zep", side_effect=ApiError(status_code=503, body="secret"),
         ):
             response = http.post("/api/chat", json={
                 "question": "egg recipes", "retrieval_backend": "zep",
@@ -558,6 +433,8 @@ class ChatApiTests(unittest.TestCase):
             "recipe_cards": [],
             "thread_uuid": None,
             "memory_status": None,
+            "graphiti_thread_uuid": None,
+            "graphiti_memory_status": None,
         })
         self.assertEqual(embedding.calls, [])
         self.assertEqual(database_pool.connection_count, 0)
@@ -586,6 +463,8 @@ class ChatApiTests(unittest.TestCase):
             "recipe_cards": [],
             "thread_uuid": None,
             "memory_status": None,
+            "graphiti_thread_uuid": None,
+            "graphiti_memory_status": None,
         })
         self.assertEqual(embedding.calls, [])
         self.assertEqual(database_pool.connection_count, 0)
@@ -648,7 +527,6 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual(client.embedding.calls, [])
         output = json.loads(chat.calls[-1]['input'][-1]['output'])
         self.assertEqual(output, {"recipe": None})
-        self.assertIn("recipe is null", chat.calls[-1]['instructions'])
 
     def test_model_tool_arguments_are_used_without_slug_prevalidation(self):
         chat = FakeChatClient(responses=[provider_response(
@@ -706,6 +584,8 @@ class ChatApiTests(unittest.TestCase):
             "recipe_cards": [],
             "thread_uuid": None,
             "memory_status": None,
+            "graphiti_thread_uuid": None,
+            "graphiti_memory_status": None,
         })
         self.assertEqual(embedding.calls, [])
         self.assertEqual(connection.calls, [])
@@ -715,7 +595,7 @@ class ChatApiTests(unittest.TestCase):
         self.assertIn("steamed-eggs", router_input[0]["content"])
         self.assertEqual(router_input[1]["content"], "Earlier, we looked at Turkey Bowl.")
         self.assertEqual(router_input[-1]["content"], "What goes into the egg mixture?")
-        self.assertIn("prioritize it over earlier recipe references", chat.calls[0]["instructions"].lower())
+        self.assertIn("it is the only recipe the user is discussing", chat.calls[0]["instructions"].lower())
 
     def test_invalid_request_returns_422_before_retrieval(self):
         payloads = (

@@ -41,7 +41,7 @@ ZEP_USER_UUID=your_zep_user_uuid
 ```
 
 Zep graph setup and recipe ingestion are described in
-[the Zep guide](docs/zep-experiment.md#setup-and-recipe-ingestion).
+[the Zep guide](docs/zep-experiment.md#submit-one-recipe).
 For local chat without Zep, select **Vector RAG** in the chat panel.
 
 ### 3. Set up the recipe database
@@ -93,8 +93,13 @@ Type `quit` to exit.
 
 ## Zep experiment
 
-Bitesize chat supports Zep graph search, source recipe cards, and optional memory
+Bitesize chat supports native Zep and Graphiti graph retrieval, chat answers, and optional memory
 for one shared test user, alongside existing vector RAG. The browser restores the
 current conversation after reload. See [setup and examples](docs/zep-experiment.md).
 
-Every handled chat request saves an ordered Markdown capture in `.zep/requests/`.
+Requests that query Zep save a readable Markdown trace in `.zep/requests/`.
+Graphiti searches save their own trace in `.graphiti/requests/`. Vector-only
+requests are not written to either backend's trace directory.
+
+For identical Markdown ingestion, stored summary inspection, and retrieval configuration,
+see [the native graph comparison guide](docs/native-graph-comparison.md).

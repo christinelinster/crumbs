@@ -1,6 +1,9 @@
 # 008: Simple Zep recipe experiment
 
-**Status:** Implemented; approved for commit and push
+**Status:** Superseded in part by [009-native-graph-comparison.md](009-native-graph-comparison.md).
+
+Historical implementation: the JSON ingestion, revision resolution, graph recipe
+cards, and tracing requirements below are replaced by specification 009.
 
 Keep the SDK integration small and readable:
 

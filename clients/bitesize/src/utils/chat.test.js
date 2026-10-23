@@ -233,9 +233,18 @@ test('appends the assistant response to an already-visible user message', () => 
 test('sends the selected retrieval backend for Bitesize chat', () => {
   assert.equal(buildChatRequest('dinner', [], null, 'zep').retrieval_backend, 'zep')
   assert.equal(buildChatRequest('dinner', [], null, 'vector').retrieval_backend, 'vector')
+  assert.equal(buildChatRequest('dinner', [], null, 'graphiti').retrieval_backend, 'graphiti')
 })
 
-test('reload restores transcript, toggle, backend, and Zep thread ID', async () => {
+test('reload preserves Graphiti as the selected retrieval backend', async () => {
+  const { loadChatSession } = await import('./chat.js')
+  const session = loadChatSession({ getItem: () => JSON.stringify({
+    messages: [], retrievalBackend: 'graphiti',
+  }) })
+  assert.equal(session.retrievalBackend, 'graphiti')
+})
+
+test('reload restores transcript, backend, and graph thread IDs', async () => {
   const { loadChatSession, saveChatSession } = await import('./chat.js')
   let value = null
   const storage = { getItem: () => value, setItem: (key, data) => { value = data } }
@@ -244,21 +253,23 @@ test('reload restores transcript, toggle, backend, and Zep thread ID', async () 
       { role: 'user', content: 'I avoid onions.' },
       { role: 'assistant', content: 'Try tofu.', recipeCards: [{ slug: 'tofu' }], memoryStatus: 'saved' },
     ],
-    threadUuid: 'thread-1', sharedMemory: true, retrievalBackend: 'zep',
+    threadUuid: 'thread-1', retrievalBackend: 'zep',
+    graphitiThreadUuid: 'graphiti-thread-1',
   }
   assert.equal(saveChatSession(session, storage), true)
   assert.deepEqual(loadChatSession(storage), session)
 })
 
-test('new chat clears transcript and thread while keeping the memory choice', async () => {
+test('new chat clears transcript and graph threads while keeping the backend', async () => {
   const { newChatSession } = await import('./chat.js')
   const next = newChatSession({
     messages: [{ role: 'user', content: 'Old chat' }],
-    threadUuid: 'old-thread', sharedMemory: true, retrievalBackend: 'zep',
+    threadUuid: 'old-thread', graphitiThreadUuid: 'old-graphiti-thread', retrievalBackend: 'zep',
   })
   assert.deepEqual(next.messages, [])
   assert.equal(next.threadUuid, null)
-  assert.equal(next.sharedMemory, true)
+  assert.equal(next.graphitiThreadUuid, null)
+  assert.equal(next.retrievalBackend, 'zep')
 })
 
 test('blocked or corrupt storage leaves chat usable without claiming persistence', async () => {
@@ -268,12 +279,63 @@ test('blocked or corrupt storage leaves chat usable without claiming persistence
   assert.equal(saveChatSession({ messages: [] }, storage), false)
 })
 
-test('only enabled turns send shared-memory and thread fields', () => {
-  const memory = { sharedMemory: true, threadUuid: 'thread-1' }
-  const enabled = buildChatRequest('dinner', [], null, 'zep', memory)
-  assert.equal(enabled.shared_memory, true)
-  assert.equal(enabled.thread_uuid, 'thread-1')
-  const disabled = buildChatRequest('dinner', [], null, 'zep', { ...memory, sharedMemory: false })
-  assert.equal(disabled.shared_memory, undefined)
-  assert.equal(disabled.thread_uuid, undefined)
+test('Zep selection automatically saves only to Zep and reuses its thread', () => {
+  const request = buildChatRequest('dinner', [], null, 'zep', {
+    sharedMemory: false, graphitiMemory: true,
+    threadUuid: 'zep-thread', graphitiThreadUuid: 'graphiti-thread',
+  })
+  assert.equal(request.shared_memory, true)
+  assert.equal(request.thread_uuid, 'zep-thread')
+  assert.equal(request.graphiti_memory, undefined)
+  assert.equal(request.graphiti_thread_uuid, undefined)
+})
+
+test('Graphiti selection automatically saves only to Graphiti and reuses its thread', () => {
+  const request = buildChatRequest('dinner', [], null, 'graphiti', {
+    sharedMemory: true, graphitiMemory: false,
+    threadUuid: 'zep-thread', graphitiThreadUuid: 'graphiti-thread',
+  })
+  assert.equal(request.graphiti_memory, true)
+  assert.equal(request.graphiti_thread_uuid, 'graphiti-thread')
+  assert.equal(request.shared_memory, undefined)
+  assert.equal(request.thread_uuid, undefined)
+})
+
+test('first graph turns enable saving without supplying a thread ID', () => {
+  const zep = buildChatRequest('dinner', [], null, 'zep')
+  assert.equal(zep.shared_memory, true)
+  assert.equal(zep.thread_uuid, undefined)
+  const graphiti = buildChatRequest('dinner', [], null, 'graphiti')
+  assert.equal(graphiti.graphiti_memory, true)
+  assert.equal(graphiti.graphiti_thread_uuid, undefined)
+})
+
+test('vector selection never saves to graph backends despite old saved choices', () => {
+  const request = buildChatRequest('dinner', [], null, 'vector', {
+    sharedMemory: true, graphitiMemory: true,
+    threadUuid: 'zep-thread', graphitiThreadUuid: 'graphiti-thread',
+  })
+  for (const key of ['shared_memory', 'graphiti_memory', 'thread_uuid', 'graphiti_thread_uuid']) {
+    assert.equal(request[key], undefined)
+  }
+})
+
+test('reload drops retired memory choices and saves to the selected graph', async () => {
+  const { loadChatSession, newChatSession } = await import('./chat.js')
+  const saved = { messages: [], retrievalBackend: 'graphiti', sharedMemory: true, graphitiMemory: false }
+  const session = loadChatSession({ getItem: () => JSON.stringify(saved) })
+  assert.equal(session.sharedMemory, undefined)
+  assert.equal(session.graphitiMemory, undefined)
+  assert.equal(buildChatRequest('dinner', [], null, session.retrievalBackend, session).graphiti_memory, true)
+  const reset = newChatSession(saved)
+  assert.equal(reset.retrievalBackend, 'graphiti')
+  assert.equal(reset.sharedMemory, undefined)
+  assert.equal(reset.graphitiMemory, undefined)
+})
+
+test('Graphiti save status is preserved on assistant messages', () => {
+  const messages = appendAssistantMessage([], {
+    answer: 'Try tofu.', graphiti_memory_status: 'error',
+  })
+  assert.equal(messages[0].graphitiMemoryStatus, 'error')
 })

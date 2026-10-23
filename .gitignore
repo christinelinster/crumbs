@@ -49,3 +49,4 @@ AGENTS.md
 
 # Local Zep experiment artifacts
 .zep/
+.graphiti/

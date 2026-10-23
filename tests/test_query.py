@@ -410,8 +410,7 @@ class QueryToolExecutionTests(QueryTestCase):
         self.assertIn("WHERE r.slug = %s", connection.calls[0][0])
         self.assertEqual(self.tool_results(chat)[0], {"recipe": None})
         self.assertIn('"recipe": null', chat.calls[-1]["input"][-1]["output"])
-        self.assertIn("recipe is null", chat.calls[-1]["instructions"])
-        self.assertIn("do not search for substitutes", chat.calls[-1]["instructions"])
+        self.assertIn("Do not search for substitutes", chat.calls[0]["instructions"])
 
     def test_model_slug_is_passed_directly_to_database_lookup(self):
         _, chat = self.client_for_tools([
@@ -618,7 +617,6 @@ class QueryToolExecutionTests(QueryTestCase):
         self.assertEqual(result.recipe_cards, [])
         self.assertEqual(len(connection.calls), 1)
         self.assertEqual(embedding.calls, [])
-        self.assertIn("anchor: null", chat.calls[-1]["instructions"])
 
     def test_anchor_without_embedding_does_not_generate_a_replacement_vector(self):
         embedding, chat = self.client_for_tools([

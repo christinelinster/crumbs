@@ -133,6 +133,13 @@ function ChatMessage({ message }) {
             : 'Memory save failed or could not be confirmed. Your answer is still available.'}
         </p>
       )}
+      {message.graphitiMemoryStatus && (
+        <p className="chat-memory-status" role="status">
+          {message.graphitiMemoryStatus === 'saved'
+            ? 'Conversation saved to Graphiti.'
+            : 'Graphiti save failed or could not be confirmed. Your answer is still available.'}
+        </p>
+      )}
       {message.recipeCards?.length > 0 && (
         <div className="chat-references">
           <span className="chat-references-label">Recipes in this answer</span>
@@ -160,8 +167,6 @@ export default function ChatPanel({
   onClearRecipeContext,
   retrievalBackend,
   changeRetrievalBackend,
-  sharedMemory,
-  changeSharedMemory,
   storageAvailable,
 }) {
   const [draft, setDraft] = useState('')
@@ -231,23 +236,10 @@ export default function ChatPanel({
           >
             <option value="zep">Zep graph</option>
             <option value="vector">Vector RAG</option>
+            <option value="graphiti">Graphiti (Neo4j)</option>
           </select>
         </label>
 
-        {retrievalBackend === 'zep' && (
-          <div className="chat-memory-controls">
-            <label>
-              <input
-                type="checkbox"
-                checked={sharedMemory}
-                disabled={loading}
-                onChange={(event) => changeSharedMemory(event.target.checked)}
-              />
-              Use shared test memory
-            </label>
-            <small>When enabled, messages are saved to Zep. Everyone shares this test user's preferences.</small>
-          </div>
-        )}
         {!storageAvailable && (
           <p className="chat-memory-status" role="status">Reload recovery is unavailable in this browser.</p>
         )}

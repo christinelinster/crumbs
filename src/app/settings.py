@@ -16,7 +16,15 @@ except ValueError:
 if EMBEDDING_DIMENSIONS <= 0:
     raise ValueError("EMBEDDING_DIMENSIONS must be a positive integer")
 OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+GRAPHITI_LLM_MODEL = os.getenv("GRAPHITI_LLM_MODEL", "gpt-5.5")
+GRAPHITI_SMALL_MODEL = os.getenv("GRAPHITI_EXTRACTION_MODEL", GRAPHITI_LLM_MODEL)
+RECIPE_GROUP_ID = 'shared_recipes'
+USER_GROUP_ID = 'user_christine'
 
 ZEP_API_KEY = os.getenv("ZEP_API_KEY")
 ZEP_GRAPH_UUID = os.getenv("ZEP_GRAPH_UUID")
 ZEP_USER_UUID = os.getenv("ZEP_USER_UUID")
+
+NEO4J_URI=os.getenv("NEO4J_URI")
+NEO4J_USER=os.getenv("NEO4J_USER")
+NEO4J_PASSWORD=os.getenv("NEO4J_PASSWORD")
