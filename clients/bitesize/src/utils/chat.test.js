@@ -257,7 +257,7 @@ test('reload restores transcript, backend, and graph thread IDs', async () => {
     graphitiThreadUuid: 'graphiti-thread-1',
   }
   assert.equal(saveChatSession(session, storage), true)
-  assert.deepEqual(loadChatSession(storage), session)
+  assert.deepEqual(loadChatSession(storage), { ...session, conversations: {} })
 })
 
 test('new chat clears transcript and graph threads while keeping the backend', async () => {
@@ -284,7 +284,7 @@ test('Zep selection automatically saves only to Zep and reuses its thread', () =
     sharedMemory: false, graphitiMemory: true,
     threadUuid: 'zep-thread', graphitiThreadUuid: 'graphiti-thread',
   })
-  assert.equal(request.shared_memory, true)
+  assert.equal(request.shared_memory, undefined)
   assert.equal(request.thread_uuid, 'zep-thread')
   assert.equal(request.graphiti_memory, undefined)
   assert.equal(request.graphiti_thread_uuid, undefined)
@@ -299,15 +299,17 @@ test('Graphiti selection automatically saves only to Graphiti and reuses its thr
   assert.equal(request.graphiti_thread_uuid, 'graphiti-thread')
   assert.equal(request.shared_memory, undefined)
   assert.equal(request.thread_uuid, undefined)
+  assert.equal(request.history, undefined)
 })
 
 test('first graph turns enable saving without supplying a thread ID', () => {
   const zep = buildChatRequest('dinner', [], null, 'zep')
-  assert.equal(zep.shared_memory, true)
+  assert.equal(zep.shared_memory, undefined)
   assert.equal(zep.thread_uuid, undefined)
   const graphiti = buildChatRequest('dinner', [], null, 'graphiti')
   assert.equal(graphiti.graphiti_memory, true)
   assert.equal(graphiti.graphiti_thread_uuid, undefined)
+  assert.equal(graphiti.history, undefined)
 })
 
 test('vector selection never saves to graph backends despite old saved choices', () => {
@@ -338,4 +340,85 @@ test('Graphiti save status is preserved on assistant messages', () => {
     answer: 'Try tofu.', graphiti_memory_status: 'error',
   })
   assert.equal(messages[0].graphitiMemoryStatus, 'error')
+})
+
+test('switching back restores each backend transcript and thread IDs without mixing history', async () => {
+  const { newChatSession, switchChatBackend } = await import('./chat.js')
+  let session = {
+    ...newChatSession({ retrievalBackend: 'graphiti' }),
+    messages: [{ role: 'user', content: 'Graphiti question' }, { role: 'assistant', content: 'Graphiti answer', recipeCards: [] }],
+    graphitiThreadUuid: 'graphiti-thread',
+  }
+  session = switchChatBackend(session, 'zep')
+  assert.deepEqual(session.messages, [])
+  assert.equal(session.threadUuid, null)
+  session = { ...session, messages: [{ role: 'user', content: 'Zep question' }, { role: 'assistant', content: 'Zep answer', recipeCards: [] }], threadUuid: 'zep-thread' }
+  session = switchChatBackend(session, 'vector')
+  assert.deepEqual(session.messages, [])
+  session = { ...session, messages: [{ role: 'user', content: 'Vector question' }] }
+  session = switchChatBackend(session, 'graphiti')
+  assert.equal(session.messages[1].content, 'Graphiti answer')
+  assert.equal(session.graphitiThreadUuid, 'graphiti-thread')
+  const request = buildChatRequest('Follow-up', session.messages, null, session.retrievalBackend, session)
+  assert.equal(request.graphiti_thread_uuid, 'graphiti-thread')
+  assert.equal(request.history, undefined)
+  session = switchChatBackend(session, 'zep')
+  assert.equal(session.messages[1].content, 'Zep answer')
+  assert.equal(session.threadUuid, 'zep-thread')
+  assert.equal(switchChatBackend(session, 'vector').messages[0].content, 'Vector question')
+  assert.equal(switchChatBackend(session, 'zep'), session)
+})
+
+test('reload preserves inactive backend conversations and their threads', async () => {
+  const { loadChatSession, saveChatSession, newChatSession, switchChatBackend } = await import('./chat.js')
+  let stored
+  const storage = { getItem: () => stored, setItem: (_, value) => { stored = value } }
+  const graphiti = { ...newChatSession({ retrievalBackend: 'graphiti' }), messages: [{ role: 'user', content: 'Saved question' }], graphitiThreadUuid: 'saved-thread' }
+  const zep = switchChatBackend(graphiti, 'zep')
+  assert.equal(saveChatSession(zep, storage), true)
+  const restored = switchChatBackend(loadChatSession(storage), 'graphiti')
+  assert.deepEqual(restored.messages, graphiti.messages)
+  assert.equal(restored.graphitiThreadUuid, 'saved-thread')
+})
+
+test('New chat resets only the selected backend and does not resurrect its old chat', async () => {
+  const { newChatSession, switchChatBackend } = await import('./chat.js')
+  let session = { ...newChatSession(), messages: [{ role: 'user', content: 'Old Zep' }], threadUuid: 'old-zep-thread' }
+  session = switchChatBackend(session, 'graphiti')
+  session = { ...session, messages: [{ role: 'user', content: 'Keep Graphiti' }], graphitiThreadUuid: 'keep-thread' }
+  session = newChatSession(switchChatBackend(session, 'zep'))
+  assert.deepEqual(session.messages, [])
+  assert.equal(session.threadUuid, null)
+  session = switchChatBackend(session, 'graphiti')
+  assert.equal(session.messages[0].content, 'Keep Graphiti')
+  assert.equal(session.graphitiThreadUuid, 'keep-thread')
+  session = switchChatBackend(session, 'zep')
+  assert.deepEqual(session.messages, [])
+  assert.equal(session.threadUuid, null)
+})
+
+test('legacy saved chat is preserved under its selected backend on first switch', async () => {
+  const { loadChatSession, switchChatBackend } = await import('./chat.js')
+  const legacy = { messages: [{ role: 'user', content: 'Existing chat' }], retrievalBackend: 'graphiti', graphitiThreadUuid: 'existing-thread' }
+  const loaded = loadChatSession({ getItem: () => JSON.stringify(legacy) })
+  const restored = switchChatBackend(switchChatBackend(loaded, 'zep'), 'graphiti')
+  assert.deepEqual(restored.messages, legacy.messages)
+  assert.equal(restored.graphitiThreadUuid, 'existing-thread')
+})
+
+test('malformed inactive saved conversations do not discard the valid active chat', async () => {
+  const { loadChatSession, switchChatBackend } = await import('./chat.js')
+  const saved = {
+    messages: [{ role: 'user', content: 'Keep active' }], retrievalBackend: 'zep',
+    conversations: {
+      graphiti: { messages: 'invalid' },
+      vector: { messages: [null, { role: 'system', content: 'invalid' }, { role: 'assistant', content: 'Keep answer', recipeCards: null }], threadUuid: 123 },
+    },
+  }
+  const session = loadChatSession({ getItem: () => JSON.stringify(saved) })
+  assert.equal(session.messages[0].content, 'Keep active')
+  assert.deepEqual(switchChatBackend(session, 'graphiti').messages, [])
+  const vector = switchChatBackend(session, 'vector')
+  assert.deepEqual(vector.messages, [{ role: 'assistant', content: 'Keep answer', recipeCards: [] }])
+  assert.equal(vector.threadUuid, null)
 })

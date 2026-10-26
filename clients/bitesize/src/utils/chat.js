@@ -1,37 +1,40 @@
+function buildHistory(messages) {
+  return messages.map(({ role, content, recipeCards }) => {
+    const message = { role, content }
+    const recipeReferences = role === 'assistant' && Array.isArray(recipeCards)
+      ? recipeCards
+        .filter(card => (
+          typeof card?.title === 'string'
+          && card.title.trim()
+          && typeof card?.slug === 'string'
+          && card.slug.trim()
+        ))
+        .map(({ title, slug }) => ({ title, slug }))
+      : []
+
+    if (recipeReferences.length > 0) message.recipe_references = recipeReferences
+    return message
+  })
+}
+
+const CHAT_BACKENDS = {
+  vector: ({ messages }) => ({ history: buildHistory(messages) }),
+  zep: ({ threads }) => ({
+    ...(threads.threadUuid ? { thread_uuid: threads.threadUuid } : {}),
+  }),
+  graphiti: ({ threads }) => ({
+    graphiti_memory: true,
+    ...(threads.graphitiThreadUuid ? { graphiti_thread_uuid: threads.graphitiThreadUuid } : {}),
+  }),
+}
+
+const CHAT_BACKEND_NAMES = Object.keys(CHAT_BACKENDS)
+
 export function buildChatRequest(question, messages, recipeSlug = null, retrievalBackend = null, threads = {}) {
-  const request = {
-    question: question.trim(),
-    history: messages.map(({ role, content, recipeCards }) => {
-      const message = { role, content }
-      const recipeReferences = role === 'assistant' && Array.isArray(recipeCards)
-        ? recipeCards
-          .filter(card => (
-            typeof card?.title === 'string'
-            && card.title.trim()
-            && typeof card?.slug === 'string'
-            && card.slug.trim()
-          ))
-          .map(({ title, slug }) => ({ title, slug }))
-        : []
-
-      if (recipeReferences.length > 0) {
-        message.recipe_references = recipeReferences
-      }
-
-      return message
-    }),
-  }
-
+  const backendFields = (CHAT_BACKENDS[retrievalBackend] ?? CHAT_BACKENDS.vector)({ messages, threads })
+  const request = { question: question.trim(), ...backendFields }
   if (recipeSlug) request.recipe_slug = recipeSlug
   if (retrievalBackend) request.retrieval_backend = retrievalBackend
-  if (retrievalBackend === 'zep') {
-    request.shared_memory = true
-    if (threads.threadUuid) request.thread_uuid = threads.threadUuid
-  }
-  if (retrievalBackend === 'graphiti') {
-    request.graphiti_memory = true
-    if (threads.graphitiThreadUuid) request.graphiti_thread_uuid = threads.graphitiThreadUuid
-  }
   return request
 }
 
@@ -176,6 +179,34 @@ export function newChatSession(previous = {}) {
   return {
     retrievalBackend: previous.retrievalBackend ?? 'zep',
     messages: [], threadUuid: null, graphitiThreadUuid: null,
+    conversations: previous.conversations ?? {},
+  }
+}
+
+export function switchChatBackend(session, backend) {
+  if (backend === session.retrievalBackend || !CHAT_BACKEND_NAMES.includes(backend)) return session
+  const conversations = {
+    ...session.conversations,
+    [session.retrievalBackend]: {
+      messages: session.messages,
+      threadUuid: session.threadUuid,
+      graphitiThreadUuid: session.graphitiThreadUuid,
+    },
+  }
+  const next = conversations[backend] ?? newChatSession()
+  delete conversations[backend]
+  return { ...next, retrievalBackend: backend, conversations }
+}
+
+function restoreConversation(saved) {
+  return {
+    messages: saved.messages.filter(message => (
+      ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string'
+    )).map(message => message.role === 'assistant'
+      ? { ...message, recipeCards: Array.isArray(message.recipeCards) ? message.recipeCards : [] }
+      : message),
+    threadUuid: typeof saved.threadUuid === 'string' ? saved.threadUuid : null,
+    graphitiThreadUuid: typeof saved.graphitiThreadUuid === 'string' ? saved.graphitiThreadUuid : null,
   }
 }
 
@@ -183,17 +214,11 @@ export function loadChatSession(storage) {
   try {
     const saved = JSON.parse((storage ?? globalThis.localStorage).getItem(CHAT_SESSION_KEY))
     if (saved && Array.isArray(saved.messages)) {
-      return {
-        messages: saved.messages.filter(message => (
-          ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string'
-        )).map(message => message.role === 'assistant'
-          ? { ...message, recipeCards: Array.isArray(message.recipeCards) ? message.recipeCards : [] }
-          : message),
-        threadUuid: typeof saved.threadUuid === 'string' ? saved.threadUuid : null,
-        graphitiThreadUuid: typeof saved.graphitiThreadUuid === 'string' ? saved.graphitiThreadUuid : null,
-        retrievalBackend: ['vector', 'zep', 'graphiti'].includes(saved.retrievalBackend)
-          ? saved.retrievalBackend : 'zep',
-      }
+      const backend = CHAT_BACKEND_NAMES.includes(saved.retrievalBackend) ? saved.retrievalBackend : 'zep'
+      const conversations = Object.fromEntries(CHAT_BACKEND_NAMES
+        .filter(name => name !== backend && Array.isArray(saved.conversations?.[name]?.messages))
+        .map(name => [name, restoreConversation(saved.conversations[name])]))
+      return { ...restoreConversation(saved), retrievalBackend: backend, conversations }
     }
   } catch { /* Missing or blocked storage leaves chat usable. */ }
   return newChatSession()

@@ -7,6 +7,7 @@ import {
   loadChatSession,
   newChatSession,
   saveChatSession,
+  switchChatBackend,
 } from '../utils/chat'
 
 function errorMessage(error) {
@@ -66,7 +67,7 @@ export default function useChat(recipeSlug = null) {
 
   function changeRetrievalBackend(backend) {
     if (loading) return
-    setSession((current) => newChatSession({ ...current, retrievalBackend: backend }))
+    setSession((current) => switchChatBackend(current, backend))
     setError(null)
   }
 
