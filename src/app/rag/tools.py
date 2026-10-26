@@ -3,7 +3,7 @@
 import asyncio
 import json
 
-from app.chat_capture import current_capture
+from app.chat_capture import current_capture, record_graphiti_search
 from app.db.recipes import (
     RECIPE_SUMMARY_FIELDS,
     find_similar_recipes,
@@ -85,6 +85,27 @@ RECIPE_TOOLS = [
     },
 ]
 
+ROUTER_BACKEND_INSTRUCTIONS = {
+    "zep": (
+        "In zep mode, get_recipes is the only recipe tool. Christine's relevant long-term "
+        "context is already supplied from her Zep thread. get_recipes searches the shared "
+        "recipe graph only. Use it for recipe discovery, specific recipe details, and "
+        "preference questions; express names and similarity requests in input. Do not call "
+        "get_recipe_detail."
+    ),
+    "graphiti": (
+        "In graphiti mode, get_recipes is the only recipe tool. get_recipes searches Graphiti "
+        "recipe facts and Christine's user facts separately. Use it for recipe discovery, "
+        "specific recipe details, and preference questions; express names and similarity "
+        "requests in input. Do not call get_recipe_detail."
+    ),
+}
+
+
+def get_router_instructions(retrieval_backend):
+    instructions = ROUTER_BACKEND_INSTRUCTIONS.get(retrieval_backend)
+    return f'\n{instructions}' if instructions else ''
+
 
 def get_recipe_tools(retrieval_backend):
     """Expose only the arguments supported by the selected search backend."""
@@ -96,9 +117,12 @@ def get_recipe_tools(retrieval_backend):
     return [{
         **search,
         'description': (
-            "Search the shared recipe graph and Christine's user graph for recipe discovery, "
-            "specific recipe details, or food-preference questions. Recipe and user context "
-            "are returned separately; recipe results include their original Markdown sources."
+            ("Search the shared recipe graph for recipe discovery and specific recipe details. "
+             "Christine's relevant long-term context is already supplied from her Zep thread. "
+             if retrieval_backend == 'zep' else
+             "Search Graphiti's recipe and user graphs for recipe discovery, specific recipe "
+             "details, or food-preference questions. Keep recipe and user facts distinct. ")
+            + "Recipe results include their original Markdown sources."
         ),
         'parameters': {
             **search['parameters'],
@@ -229,6 +253,8 @@ def execute_recipe_tool(
         try:
             result = (asyncio.run(search_graphiti_recipes(arguments['input']))
                       if retrieval_backend == 'graphiti' else search_zep_recipes(arguments['input']))
+            if retrieval_backend == 'graphiti':
+                record_graphiti_search(arguments['input'], result=result)
             entry['result'] = result
             entry['delivery'] = 'retrieved but not submitted'
             return result, []

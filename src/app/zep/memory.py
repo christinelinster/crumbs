@@ -28,3 +28,16 @@ def save_messages(client, thread_uuid, question, answer):
         messages=[AddMessage(role='user', content=question), AddMessage(role='assistant', content=answer)],
         ignore_roles=['assistant'],
     )
+
+
+def add_user_message(client, thread_uuid, question):
+    return client.thread.add_messages(
+        thread_uuid, messages=[AddMessage(role='user', content=question)],
+    )
+
+
+def save_assistant_message(client, thread_uuid, answer):
+    return client.thread.add_messages(
+        thread_uuid, messages=[AddMessage(role='assistant', content=answer)],
+        ignore_roles=['assistant'],
+    )

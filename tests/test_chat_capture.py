@@ -31,7 +31,7 @@ class ChatCaptureTests(unittest.TestCase):
             self.assertEqual(list(zep_dir.glob('*.md')) if zep_dir.exists() else [], [])
             self.assertEqual(list(graphiti_dir.glob('*.md')) if graphiti_dir.exists() else [], [])
 
-    def test_graphiti_trace_formats_multiline_content_and_keeps_exact_payload(self):
+    def test_graphiti_trace_formats_multiline_content_without_json(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             zep_dir = root / 'zep'
@@ -65,13 +65,13 @@ class ChatCaptureTests(unittest.TestCase):
 
             content = next(graphiti_dir.glob('*.md')).read_text()
             self.assertEqual(list(zep_dir.glob('*.md')) if zep_dir.exists() else [], [])
-            self.assertIn('## 2. Graphiti retrieval', content)
-            self.assertIn('      Which recipes?\n      Use garlic.', content)
-            self.assertIn('      # Tomato pasta\n      - garlic', content)
+            self.assertIn('## 2. Graph searches and returned information', content)
+            self.assertIn('    Which recipes?\n    Use garlic.', content)
+            self.assertIn('    # Tomato pasta\n    - garlic', content)
             self.assertIn('First sentence.\nSecond sentence.', content)
             self.assertIn('Try tomato pasta.\nIt uses garlic.', content)
-            self.assertIn('<summary>Exact payload</summary>', content)
-            self.assertIn('"instructions": "First sentence.\\nSecond sentence."', content)
+            self.assertNotIn('<summary>', content)
+            self.assertNotIn('```json', content)
 
     def test_zep_capture_does_not_write_a_graphiti_trace(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -87,7 +87,7 @@ class ChatCaptureTests(unittest.TestCase):
                     record['model_output'] = {'text': 'A recipe answer.'}
 
             content = next(zep_dir.glob('*.md')).read_text()
-            self.assertIn('## 2. Zep retrieval', content)
+            self.assertIn('## 2. Graph searches and returned information', content)
             self.assertEqual(list(graphiti_dir.glob('*.md')) if graphiti_dir.exists() else [], [])
 
     def test_concurrent_captures_do_not_mix_requests_and_preserve_markdown(self):

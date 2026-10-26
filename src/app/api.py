@@ -17,8 +17,10 @@ from app.db.recipes import get_recipe_by_slug, list_recipe_summaries
 from app.graphiti.memory import save_conversation as save_graphiti_conversation
 from app.rag.query import process_query_result
 from app import settings
-from app.zep.memory import prepare_thread, save_messages, ThreadOwnershipError
-from app.zep.retrieval import get_graph_context
+from app.zep.memory import (
+    add_user_message, prepare_thread, save_assistant_message, save_messages, ThreadOwnershipError,
+)
+from app.zep.retrieval import get_graph_context, get_thread_context
 
 
 Number = int | float | None
@@ -167,15 +169,18 @@ def create_app(database_pool=pool) -> FastAPI:
 
     @api.post("/api/chat", response_model=ChatResponse)
     def chat(request: ChatRequest) -> ChatResponse:
-        with capture_chat(request.question) as capture:
+        with capture_chat(request.question, request.retrieval_backend) as capture:
             history = [message.model_dump(exclude_none=True) for message in request.history]
             zep = None
             thread_uuid = None
             memory_context = None
             try:
-                if request.shared_memory:
+                if request.shared_memory or request.retrieval_backend == 'zep':
                     zep, thread_uuid = prepare_thread(request.thread_uuid)
-                    if request.retrieval_backend == 'vector':
+                    if request.retrieval_backend == 'zep':
+                        add_user_message(zep, thread_uuid, request.question)
+                        memory_context = get_thread_context(zep, thread_uuid).context
+                    elif request.retrieval_backend == 'vector':
                         memory_context = get_graph_context(zep, settings.ZEP_USER_UUID, request.question).context
                 result = process_query_result(
                     request.question,
@@ -195,7 +200,10 @@ def create_app(database_pool=pool) -> FastAPI:
             memory_status = None
             if zep is not None:
                 try:
-                    save_messages(zep, thread_uuid, request.question, result.answer)
+                    if request.retrieval_backend == 'zep':
+                        save_assistant_message(zep, thread_uuid, result.answer)
+                    else:
+                        save_messages(zep, thread_uuid, request.question, result.answer)
                     memory_status = "saved"
                 except (OSError, RuntimeError, ValueError, ApiError, HTTPError):
                     memory_status = "error"

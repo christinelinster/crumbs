@@ -44,3 +44,10 @@ class RoutingToolTests(unittest.TestCase):
         self.assertEqual(schemas[0]["parameters"]["required"], ["input"])
         self.assertEqual(set(tools.get_recipe_tools("vector")[1]["parameters"]["properties"]),
                          {"input", "limit", "similar_to_slug"})
+
+    def test_backend_router_instructions_live_with_recipe_tool_policy(self):
+        tools = self.routing_tools()
+        self.assertIn("Zep thread", tools.get_router_instructions("zep"))
+        self.assertIn("recipe facts and Christine's user facts separately",
+                      tools.get_router_instructions("graphiti"))
+        self.assertEqual(tools.get_router_instructions("vector"), "")

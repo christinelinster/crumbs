@@ -295,7 +295,9 @@ class ChatApiTests(unittest.TestCase):
         zep = Mock()
         recipe_context = zep_context([{'fact': 'Eggs use eggs.', 'episode_uuids': ['episode-1']}])
         user_context = zep_context(context='Christine avoids garlic.')
-        zep.graph.get_context.side_effect = [recipe_context, user_context]
+        zep.graph.get_context.return_value = recipe_context
+        zep.thread.create.return_value.uuid_ = 'thread-1'
+        zep.thread.get_context.return_value = user_context
         markdown = '# Steamed Eggs\n\n## Ingredients\n- 2 eggs\n- 1 cup water\n\n## Instructions\nSteam gently.'
         zep.graph.episode.get.return_value = SimpleNamespace(
             graph_uuid='graph-1', document_id='steamed-eggs', content=markdown,
@@ -308,7 +310,9 @@ class ChatApiTests(unittest.TestCase):
         database_pool = FakePool(FakeConnection())
         with self.http_app(database_pool, client) as http, patch(
             'app.zep.retrieval.get_zep', return_value=zep,
-        ), patch.multiple('app.zep.retrieval.settings', ZEP_GRAPH_UUID='graph-1', ZEP_USER_UUID='user-1'):
+        ), patch('app.zep.memory.get_zep', return_value=zep), patch.multiple(
+            'app.zep.retrieval.settings', ZEP_GRAPH_UUID='graph-1', ZEP_USER_UUID='user-1',
+        ):
             response = http.post('/api/chat', json={
                 'question': 'egg recipes', 'retrieval_backend': 'zep',
                 'history': [{'role': 'user', 'content': 'I want breakfast.'}],
@@ -318,35 +322,38 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual(response.json()['recipe_cards'], [])
         self.assertEqual(database_pool.connection_count, 0)
         self.assertEqual(client.embedding.calls, [])
-        self.assertEqual([c.kwargs['graph_uuid'] for c in zep.graph.get_context.call_args_list], ['graph-1', 'user-1'])
-        zep.thread.add_messages.assert_not_called()
+        self.assertEqual([c.kwargs['graph_uuid'] for c in zep.graph.get_context.call_args_list], ['graph-1'])
+        self.assertEqual(zep.thread.add_messages.call_count, 2)
+        zep.thread.get_context.assert_called_once_with('thread-1')
         zep.graph.episode.get.assert_called_once_with('graph-1', 'episode-1')
         final = json.loads(chat.calls[1]['input'][-1]['output'])
         self.assertEqual(final['recipe_context'], recipe_context.context)
-        self.assertEqual(final['user_context'], user_context.context)
         self.assertEqual(final['sources'][0]['markdown'], markdown)
         self.assertEqual([t['name'] for t in chat.calls[0]['tools']], ['get_recipes'])
-        self.assertEqual(chat.calls[0]['input'][0]['content'], 'I want breakfast.')
+        self.assertIn('Christine avoids garlic.', chat.calls[0]['input'][0]['content'])
         trace = next(self.capture_dir.glob('*.md')).read_text()
-        for text in ('recipe graph', 'user graph', 'Christine avoids garlic.',
-                     'Supplemental recipe source fetches', 'Router LLM input',
-                     'Router LLM output', '## 3. Final LLM input', 'Try Steamed Eggs.'):
+        for text in ('recipe graph', 'user thread', 'Christine avoids garlic.', 'thread.get_context',
+                     'Supplemental recipe source fetches', '## 4. Full final LLM input',
+                     'Try Steamed Eggs.'):
             self.assertIn(text, trace)
-        captured_input = json.loads(trace.split('## 3. Final LLM input\n')[1].split('```json\n')[1].split('\n```')[0])
-        from fastapi.encoders import jsonable_encoder
-        self.assertEqual(captured_input['input'], jsonable_encoder(chat.calls[1]['input'], exclude_unset=True))
-        self.assertEqual(captured_input['instructions'], chat.calls[1]['instructions'])
+        self.assertIn('System prompt (instructions)', trace)
         self.assertFalse(list(self.graphiti_capture_dir.glob('*.md')))
 
     def test_zep_source_failure_preserves_partial_trace_without_fallback(self):
         from unittest.mock import Mock
         zep = Mock()
         zep.graph.get_context.return_value = zep_context([{'fact': 'Eggs.', 'episode_uuids': ['ep']}])
+        zep.thread.create.return_value.uuid_ = 'thread-2'
+        zep.thread.get_context.return_value.context = 'Relevant thread context.'
+        zep.thread.get_context.return_value.results = None
+        zep.thread.get_context.return_value.truncated = None
         zep.graph.episode.get.side_effect = RuntimeError('private source error')
         chat = FakeChatClient(responses=[provider_response(tool_calls=[provider_tool_call('get_recipes', {'input': 'eggs'})])])
         database_pool = FakePool(FakeConnection())
         client = FakeClient(chat=chat)
-        with self.http_app(database_pool, client) as http, patch('app.zep.retrieval.get_zep', return_value=zep), patch.multiple(
+        with self.http_app(database_pool, client) as http, patch('app.zep.retrieval.get_zep', return_value=zep), patch(
+            'app.zep.memory.get_zep', return_value=zep,
+        ), patch.multiple(
             'app.zep.retrieval.settings', ZEP_GRAPH_UUID='recipes', ZEP_USER_UUID='user',
         ):
             response = http.post('/api/chat', json={'question': 'eggs', 'retrieval_backend': 'zep'})
