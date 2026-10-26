@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { getRecipe as requestRecipe } from '../services/api'
 
 const cachedRecipes = new Map()
 const inFlight = new Map()
@@ -7,11 +8,7 @@ function fetchRecipe(slug) {
   if (cachedRecipes.has(slug)) return Promise.resolve(cachedRecipes.get(slug))
 
   if (!inFlight.has(slug)) {
-    const request = fetch(`/api/recipes/${encodeURIComponent(slug)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Request failed with status ${res.status}`)
-        return res.json()
-      })
+    const request = requestRecipe(slug)
       .then((data) => {
         cachedRecipes.set(slug, data)
         return data

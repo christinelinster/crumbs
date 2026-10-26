@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { sendChatMessage } from '../services/api'
 import {
   appendAssistantMessage,
   appendUserMessage,
@@ -38,18 +39,11 @@ export default function useChat(recipeSlug = null) {
     setError(null)
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildChatRequest(content, requestHistory, recipeSlug, retrievalBackend, {
-          threadUuid: session.threadUuid,
-          graphitiThreadUuid: session.graphitiThreadUuid,
-        })),
+      const request = buildChatRequest(content, requestHistory, recipeSlug, retrievalBackend, {
+        threadUuid: session.threadUuid,
+        graphitiThreadUuid: session.graphitiThreadUuid,
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.detail || `Request failed with status ${response.status}`)
-      }
+      const data = await sendChatMessage(request)
       setSession((current) => ({
         ...current,
         messages: appendAssistantMessage(current.messages, data),

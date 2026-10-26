@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { getRecipes as requestRecipes } from '../services/api'
 
 const RecipesContext = createContext(null)
 
@@ -8,11 +9,7 @@ let inFlight = null
 function fetchRecipes() {
   if (cachedRecipes) return Promise.resolve(cachedRecipes)
   if (!inFlight) {
-    inFlight = fetch('/api/recipes')
-      .then((res) => {
-        if (!res.ok) throw new Error(`Request failed with status ${res.status}`)
-        return res.json()
-      })
+    inFlight = requestRecipes()
       .then((data) => {
         cachedRecipes = data
         return data
