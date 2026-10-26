@@ -37,14 +37,33 @@ Replace the example path with any Markdown file. Relative paths are resolved
 from your current working directory; absolute paths also work. Quote paths
 containing spaces. The command prints the extracted entities and relationships.
 Indexes are initialized before ingestion; the CLI does not run a search.
-Each run also writes a Markdown report with source content, entities, summaries,
-and facts in `.graphiti/ingestion/`. For stored summary inspection and the
-Zep comparison, see [the comparison guide](../../../docs/native-graph-comparison.md).
+Ingestion does not write trace files. Inspect stored data in the Neo4j UI.
+For programmatic summary inspection and the Zep comparison, see [the comparison guide](../../../docs/native-graph-comparison.md).
 
 Run it again with another file, or edit a file and rerun it, to observe how
 Graphiti incorporates new evidence. Each run adds an episode rather than
 replacing the previous episode; entity merging and fact invalidation are managed
 by Graphiti's extraction pipeline.
+
+For selected recipes in bulk, use `app.graphiti.ingest.ingest_recipes(client, paths)`
+inside the same client/index initialization and close lifecycle. It reads every
+file before writing and calls `add_episode_bulk(..., use_combined_extraction=False)`.
+This uses Graphiti's native text node/edge prompts, matching single-file text
+ingestion. The default combined bulk prompt is conversational and can attribute
+recipe facts to a generic `User`; this helper avoids that prompt without custom
+extraction instructions or an ontology. Model output still needs inspection.
+Changing the ingestion path does not rewrite existing graph data.
+
+Neo4j uses `MENTIONS` edges for episode-to-entity provenance. Extracted facts are
+entity-to-entity `RELATES_TO` edges; their semantic predicate is `r.name` and their
+fact text is `r.fact`. To inspect only recipe facts:
+
+```cypher
+MATCH (source:Entity)-[r:RELATES_TO]->(target:Entity)
+WHERE r.group_id = 'shared_recipes'
+RETURN source.name AS source, r.name AS relationship, r.fact AS fact,
+       target.name AS target;
+```
 
 The complete Markdown file, including frontmatter and headings, is submitted as
 text without parsing or normalization. The episode name is the filename without
@@ -60,12 +79,15 @@ user facts separate from recipe facts and fetching Markdown sources only for
 recipe facts. Earlier data ingested into the default group is not moved or
 deleted; ingest the source files again to populate `shared_recipes`.
 
-Requests that search Graphiti save a readable Markdown trace in
-`.graphiti/requests/`. It includes the search query and groups, returned facts
-and recipe sources, the final LLM input, and its output. Multiline content is
-shown with line breaks; collapsible sections preserve exact request payloads.
-Requests that do not search Graphiti do not create a Graphiti trace. `.graphiti/`
-is ignored by Git, so these files remain local until deleted.
+Every request selecting Graphiti saves a text Markdown trace in
+`.graphiti/requests/`, including direct answers and failures. Filenames contain
+a timestamp and short query title. Reports show the user query, graph IDs and
+actual search queries, returned facts and recipe sources, context submitted to
+the model, full final input with system instructions and at most six recent conversation
+messages,
+and final response. Unsent context is labeled separately. No JSON copies or
+embedding vectors are included. Reports are written when request handling ends.
+`.graphiti/` is ignored by Git, so these files remain local until deleted.
 
 ## Query recipes in Bitesize
 
@@ -92,13 +114,16 @@ The current exchange is saved after the answer and can inform later requests.
 
 In Bitesize, select **Graphiti (Neo4j)**. Each successful chat automatically saves
 only its current user/assistant exchange into `user_christine`, set in
-`app.settings.USER_GROUP_ID`. Earlier history is not uploaded again.
+`app.settings.USER_GROUP_ID`. Earlier history is not uploaded again. Graph-mode LLM calls receive at most the
+five latest prior messages plus the current question; relevant long-term facts
+come from Graphiti search across Christine's user group.
 
 The API generates a separate `graphiti_thread_uuid` for the first enabled turn.
 Graphiti's `saga` parameter groups turns under `thread_<uuid>` using a Saga node
 and episode links. The browser stores the UUID with the transcript and reuses
-it after reload. New chat or switching retrieval backends starts a new conversation segment
-without deleting stored data. Selecting Zep saves only to Zep; Vector RAG saves
+it after reload. Switching retrieval backends restores that backend's saved transcript and thread.
+New chat starts a fresh conversation only for the selected backend without
+deleting remote data. Selecting Zep saves only to Zep; Vector RAG saves
 to neither graph. There are no separate save toggles.
 
 The user graph unifies knowledge across those conversation segments. A saga

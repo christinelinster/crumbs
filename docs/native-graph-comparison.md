@@ -28,8 +28,8 @@ A `group_id` is a namespace, not a user entity or a summary.
 poetry run python -m app.graphiti.main path/to/recipe.md
 ```
 
-Graphiti ingestion returns extracted entities and facts and writes a report to
-`.graphiti/ingestion/`. To inspect current stored state, including summaries:
+Graphiti ingestion returns extracted entities and facts without writing trace files.
+Use the Neo4j graph UI to inspect stored data, or return it programmatically:
 
 ```python
 import asyncio
@@ -49,7 +49,7 @@ asyncio.run(inspect())
 ```
 
 Inspection reads all entities, facts, episodes, sagas, and communities in the
-selected group and saves Markdown. It does not call an LLM, build communities,
+selected group and returns the data without writing files. It does not call an LLM, build communities,
 or refresh summaries. Empty results mean no such artifacts are currently stored.
 Use it on small comparison graphs, not as an unbounded production reporting job.
 
@@ -83,27 +83,49 @@ Graphiti in the UI automatically saves the current exchange only to that backend
 Vector RAG saves to neither graph. There are no separate save toggles.
 
 The router chooses whether to search and supplies the actual search query.
-The final answer call receives conversation history, router tool calls, and the
-retrieval tool output. The source supplement is application behavior and is
-identified separately from native results. No graph recipe-detail request falls
-back to Postgres or vector search.
+Graphiti model calls receive up to six conversation messages total: the latest
+five prior messages plus the current question. Zep supplies user context through
+its thread and sends no browser-supplied history to the model. Recipe search
+results arrive through the retrieval tool. The source supplement is application
+behavior and is identified separately from native results. No graph recipe-
+detail request falls back to Postgres or vector search.
 
 ## Read a request trace
 
 Select Zep or Graphiti in the Crumbs UI and ask a recipe or preference question.
 Inspect the new file in `.zep/requests/` or `.graphiti/requests/`:
 
-- Compare the original question with the actual search query and graph scopes.
-- Inspect native results before looking at supplemental Markdown sources.
-- Inspect tool outputs to see what was retained for answer generation.
-- Inspect router and final model requests to see instructions and conversation history.
-- Compare final model text with the API's delivered answer.
+1. User query.
+2. Actual graph IDs, search queries, filters, returned facts / native context
+   blocks, and supplemental recipe source fetches.
+3. Graph context actually included in the final model request, without the
+   system prompt. Retrieved data that was not submitted is labeled separately.
+4. Full final model input with system instructions and retrieved context. Zep
+   traces contain no browser-supplied history; Graphiti traces can include its
+   bounded recent history.
+5. Final response and conversation save status.
+
+Every request selecting Zep or Graphiti is recorded in its own backend folder,
+including direct answers, empty searches, and failures. Filenames contain a UTC
+timestamp and a short title taken from the user query. Reports are text only:
+no JSON copies or embedding vectors. Ingestion and storage inspection do not
+write request traces. Existing request traces are unchanged. New traces are written when request handling ends.
 
 A trace without search results is not evidence that a graph has no stored data:
 the router may choose a direct answer, or retrieval may find no relevant context.
-Storage inspection reports and request traces answer different questions.
+Stored graph data and request traces answer different questions.
 
 References: [Zep text ingestion](https://help.getzep.com/v4/adding-business-data),
 [Zep context assembly](https://help.getzep.com/v4/retrieving-context),
 [Zep user summaries](https://help.getzep.com/v4/user-summary),
 [Graphiti source](https://github.com/getzep/graphiti).
+
+## Switching between backend conversations
+
+Each backend keeps its own local transcript and remote thread IDs. Switching
+back restores that conversation, including after a browser reload. Graphiti
+sends the latest five prior messages; Zep sends no browser-supplied history.
+The browser keeps the full transcript for display and switching. New chat clears the
+selected backend conversation; the other saved backend conversations remain.
+An existing single saved chat is retained under its selected backend. Earlier
+transcripts already overwritten by the old switch behavior are not recovered.

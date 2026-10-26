@@ -1,6 +1,6 @@
 # Native Graph Comparison Implementation Plan
 
-State: Implemented
+State: Implemented - approved context-flow update
 
 > Execute inline, preserving existing workspace edits. No staging or commits.
 
@@ -38,3 +38,22 @@ Review fixes: use Graphiti namespace edge listing for empty graphs; serialize ge
 Ruling: graph answers use plain text rather than the vector card-selection schema, because graph cards are out of scope. Existing vector behavior is preserved; stale assertions referring to removed prompt wording and settings were updated to assert actual current behavior.
 
 No commits, staging, live service calls, or graph mutations. The final diff excludes pre-existing workspace changes.
+
+## Implemented follow-up: Zep thread context and bounded model history
+
+- [x] 5. Replace Zep user-graph `graph.get_context` calls with the default thread flow: append the current user message, call `thread.get_context`, and save the assistant reply after generation. Keep recipe `graph.get_context` search in the shared graph.
+- [x] 6. Keep the UI transcript intact. Zep manages thread context without browser-supplied history; Graphiti keeps bounded recent history and fact search. Do not inject saga summaries or fetch whole conversation episodes. Update request traces and usage docs to describe both retrieval paths.
+- [x] 7. Run syntax/diff checks and review the scoped diff. Existing tests were updated but not run per the no-test-run instruction.
+
+## Implemented follow-up: Zep-managed conversation memory
+
+- [x] Remove browser-supplied history from Zep requests and ignore API history in Zep model calls; let `thread.get_context()` choose context. Keep Graphiti's five-message window.
+- [x] Update request prompt wording, traces, and docs. Tests were not run per the no-test-run instruction.
+
+
+Follow-up verification: Python and JavaScript syntax checks and `git diff --check` passed. Tests were not run at Christine's instruction. No live graph calls or mutations were made.
+
+## Implemented follow-up: Zep-managed conversation history
+
+- [x] Do not send browser conversation history in Zep-mode model requests; rely on `thread.get_context()` for conversation memory. Keep Graphiti's existing five-message window.
+- [x] Update request-building behavior and docs. Tests were not run per the no-test-run instruction.
