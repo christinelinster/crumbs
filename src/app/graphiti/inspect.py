@@ -1,5 +1,4 @@
 """Read stored entities, facts, episodes, and summaries without changing them."""
-from app.chat_capture import write_ingestion_report
 
 
 async def inspect_graph(client, group_id):
@@ -11,5 +10,4 @@ async def inspect_graph(client, group_id):
         'sagas': await client.nodes.saga.get_by_group_ids([group_id]),
         'communities': await client.nodes.community.get_by_group_ids([group_id]),
     }
-    write_ingestion_report('graphiti', report)
     return report

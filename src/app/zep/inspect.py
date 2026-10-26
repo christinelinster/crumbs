@@ -1,7 +1,6 @@
 """Explicit graph inspection; no ingestion, summarization, or answer-model calls."""
 from zep_cloud.core.api_error import ApiError
 
-from app.chat_capture import write_ingestion_report
 
 
 def inspect_graph(client, graph_uuid, *, user_graph=False, episode_uuid=None, debug=False):
@@ -22,5 +21,4 @@ def inspect_graph(client, graph_uuid, *, user_graph=False, episode_uuid=None, de
             report['ingestion_traces'] = list(client.graph.episode.list_ingestion_traces(graph_uuid, episode_uuid))
         except ApiError as error:
             report['diagnostics_unavailable'] = {'status_code': error.status_code}
-    write_ingestion_report('zep', report)
     return report

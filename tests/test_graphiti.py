@@ -104,7 +104,7 @@ class GraphitiTests(unittest.IsolatedAsyncioTestCase):
         client = AsyncMock()
         client.add_episode.return_value = SimpleNamespace(episode={'uuid': 'ep'}, nodes=[], edges=[])
         before = datetime.now(timezone.utc)
-        with tempfile.TemporaryDirectory() as directory, patch('app.graphiti.ingest.write_ingestion_report'):
+        with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'garlic-pasta.md'
             path.write_text(markdown, encoding='utf-8')
             result = await ingest_recipe(client, path)
@@ -118,3 +118,51 @@ class GraphitiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(arguments['group_id'], 'shared_recipes')
         self.assertLessEqual(before, arguments['reference_time'])
         self.assertLessEqual(arguments['reference_time'], datetime.now(timezone.utc))
+
+
+class GraphitiBulkRecipeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_empty_selection_does_not_write(self):
+        from app.graphiti.ingest import ingest_recipes
+        client = AsyncMock()
+        with self.assertRaises(ValueError):
+            await ingest_recipes(client, [])
+        client.add_episode_bulk.assert_not_called()
+
+    async def test_bulk_recipe_ingestion_uses_native_text_extraction_without_speaker_prompt(self):
+        from app.graphiti.ingest import ingest_recipes
+        client = AsyncMock()
+        client.add_episode_bulk.return_value = SimpleNamespace(episodes=[], nodes=[], edges=[])
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [Path(directory) / name for name in ('first.md', 'second.md')]
+            markdown = ['# First 🍲\n- ½ onion\n', '# Second\n- eggs\n']
+            for path, content in zip(paths, markdown):
+                path.write_text(content, encoding='utf-8')
+            result = await ingest_recipes(client, paths)
+        args, kwargs = client.add_episode_bulk.call_args
+        self.assertEqual([e.content for e in args[0]], markdown)
+        self.assertEqual([e.name for e in args[0]], ['first', 'second'])
+        self.assertTrue(all(e.source == EpisodeType.text for e in args[0]))
+        self.assertEqual(kwargs, {'group_id': 'shared_recipes', 'use_combined_extraction': False})
+        self.assertIs(result, client.add_episode_bulk.return_value)
+        client.add_episode.assert_not_called()
+
+    async def test_bulk_reads_all_sources_before_any_graph_write(self):
+        from app.graphiti.ingest import ingest_recipes
+        client = AsyncMock()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'valid.md'
+            path.write_text('# Recipe')
+            with self.assertRaises(FileNotFoundError):
+                await ingest_recipes(client, [path, path.with_name('missing.md')])
+        client.add_episode_bulk.assert_not_called()
+
+    async def test_bulk_failure_propagates_without_retry(self):
+        from app.graphiti.ingest import ingest_recipes
+        client = AsyncMock()
+        client.add_episode_bulk.side_effect = RuntimeError('unavailable')
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'recipe.md'
+            path.write_text('# Recipe')
+            with self.assertRaises(RuntimeError):
+                await ingest_recipes(client, [path])
+        self.assertEqual(client.add_episode_bulk.await_count, 1)
